@@ -2,6 +2,10 @@
 # CUSTOM FUNCTIONS - Put your new or overriding functions here
 # ===================================================================================
 
+Function Get-IsServerInstall() {
+  return Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\"
+}
+
 #Region Get Version
 # ===================================================================================
 # FUNC: Get Version
@@ -90,6 +94,8 @@ Function Configure-PDFSearchAndIcon
 			$PSSnapin = Add-PsSnapin Microsoft.SharePoint.PowerShell
 		}
 
+    	if((Get-IsServerInstall) -eq $true)
+    	{
 		Write-Host -ForegroundColor White " - Setting PDF search crawl extension..."
 		$searchApplications = Get-SPEnterpriseSearchServiceApplication
 		If ($searchApplications)
@@ -109,6 +115,12 @@ Function Configure-PDFSearchAndIcon
 			}
 		}
 		Else {Write-Warning " - No search applications found."}
+    	}
+    	else
+    	{
+        Write-Host -ForegroundColor White " - PDF search crawl extension skipped as Foundation install..."
+    	}
+
 		Write-Host -ForegroundColor White " - Updating registry..."
 		If ((Get-Item -Path Registry::"HKLM\SOFTWARE\Microsoft\Office Server\14.0\Search\Setup\Filters\.pdf" -ErrorAction SilentlyContinue) -eq $null)
 		{
@@ -124,11 +136,25 @@ Function Configure-PDFSearchAndIcon
 		}
 		##Write-Host -ForegroundColor White " - Restarting SharePoint Foundation Search Service..."
 		##Restart-Service SPSearch4
+		
+if(Get-Service OSearch14 -ErrorAction SilentlyContinue)
+{
 		If ((Get-Service OSearch14).Status -eq "Running")
 		{
 			Write-Host -ForegroundColor White " - Restarting SharePoint Search Service..."
 			Restart-Service OSearch14
 		}
+}
+
+if(Get-Service SPSearch4 -ErrorAction SilentlyContinue)
+{
+		If ((Get-Service OSearch14).Status -eq "Running")
+		{
+			Write-Host -ForegroundColor White " - Restarting SharePoint Foundation Search Service..."
+			Restart-Service SPSearch4
+		}
+}
+		
 		Write-Host -ForegroundColor White " - Done configuring PDF search."
 
 		Write-Host -ForegroundColor White " - Configuring PDF Icon..."

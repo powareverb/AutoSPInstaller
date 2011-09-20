@@ -567,15 +567,9 @@ Function InstallLanguagePacks([xml]$xmlinput)
 {
 	WriteLine
    	#Get installed languages from registry (HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office Server\14.0\InstalledLanguages)
+    #$InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
     #GPJ - Changed HKLM location to shared tools
-   	If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
-   	{
-       $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
-    else
-    {   
-      $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Shared Tools\Web Server Extensions\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
+    $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Shared Tools\Web Server Extensions\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
 	# Look for extracted language packs
 	$ExtractedLanguagePacks = (Get-ChildItem "$bits\LanguagePacks" -Name -Include "??-??" -ErrorAction SilentlyContinue)
     $ServerLanguagePacks = (Get-ChildItem "$bits\LanguagePacks" -Name -Include ServerLanguagePack_*.exe -ErrorAction SilentlyContinue)
@@ -588,7 +582,6 @@ Function InstallLanguagePacks([xml]$xmlinput)
             If (!$Language)
 			{
     	        Write-Host -ForegroundColor Blue " - Installing extracted language pack $LanguagePackFolder..." -NoNewline
-    	        #Start-Process -WorkingDirectory "$bits\LanguagePacks\$LanguagePackFolder\" -FilePath "setup.exe" -ArgumentList "/config $bits\LanguagePacks\$LanguagePackFolder\Files\SetupSilent\config.xml"
     	        Start-Process -FilePath "$bits\LanguagePacks\$LanguagePackFolder\setup.exe" -ArgumentList "/config $bits\LanguagePacks\$LanguagePackFolder\Files\SetupSilent\config.xml"
     	        While (Get-Process -Name "setup" -ErrorAction SilentlyContinue)
     	        {
@@ -628,7 +621,7 @@ Function InstallLanguagePacks([xml]$xmlinput)
 				If (Get-ChildItem "$bits\LanguagePacks" -Name -Include spflanguagepack2010sp1-kb2460059-x64-fullfile-$Language.exe -ErrorAction SilentlyContinue)
 				{
 					Write-Host -ForegroundColor Blue " - Installing Foundation language pack SP1 for $Language..." -NoNewline
-					Start-Process -WorkingDirectory "$bits\LanguagePacks\" -FilePath "spflanguagepack2010sp1-kb2460059-x64-fullfile-$Language.exe" -ArgumentList "/quiet /norestart"
+					Start-Process -FilePath "$bits\LanguagePacks\spflanguagepack2010sp1-kb2460059-x64-fullfile-$Language.exe" -ArgumentList "/quiet /norestart"
 	    	        While (Get-Process -Name spflanguagepack2010sp1-kb2460059-x64-fullfile-$Language -ErrorAction SilentlyContinue)
 	    	        {
 	    	        	Write-Host -ForegroundColor Blue "." -NoNewline
@@ -639,7 +632,7 @@ Function InstallLanguagePacks([xml]$xmlinput)
 					If (Get-ChildItem "$bits\LanguagePacks" -Name -Include serverlanguagepack2010sp1-kb2460056-x64-fullfile-$Language.exe -ErrorAction SilentlyContinue)
 					{
 						Write-Host -ForegroundColor Blue " - Installing Server language pack SP1 for $Language..." -NoNewline
-						Start-Process -WorkingDirectory "$bits\LanguagePacks\" -FilePath "serverlanguagepack2010sp1-kb2460056-x64-fullfile-$Language.exe" -ArgumentList "/quiet /norestart"
+						Start-Process -FilePath "$bits\LanguagePacks\serverlanguagepack2010sp1-kb2460056-x64-fullfile-$Language.exe" -ArgumentList "/quiet /norestart"
 		    	        While (Get-Process -Name serverlanguagepack2010sp1-kb2460056-x64-fullfile-$Language -ErrorAction SilentlyContinue)
 		    	        {
 		    	        	Write-Host -ForegroundColor Blue "." -NoNewline
@@ -668,21 +661,11 @@ Function InstallLanguagePacks([xml]$xmlinput)
     }
 
     # Get and note installed languages
-    #GPJ - Changed HKLM location to shared tools
-    #GPJ - Changed HKLM location to shared tools
-   	If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
-   	{
-       $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
-    else
-    {   
-      $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Shared Tools\Web Server Extensions\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
+    $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Shared Tools\Web Server Extensions\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
     Write-Host -ForegroundColor White " - Currently installed languages:" 
     ForEach ($Language in $InstalledOfficeServerLanguages)
     {
-    #GPJ - Changed HKLM location to shared tools
-    	Write-Host "  -" ([System.Globalization.CultureInfo]::GetCultureInfo([int]$Language).DisplayName)
+    	Write-Host "  -" ([System.Globalization.CultureInfo]::GetCultureInfo($Language).DisplayName)
     }
 	WriteLine
 }
@@ -715,7 +698,7 @@ Function ConfigureFarmAdmin([xml]$xmlinput)
 				Restart-Service SPTimerV4
 			}
     	}
-        Catch {Write-Host -ForegroundColor White " - $FarmAcct is already an Administrator."}
+        Catch {Write-host -ForegroundColor White " - $FarmAcct is already an Administrator."}
 		WriteLine
     }
 }
@@ -1000,15 +983,7 @@ Function ConfigureLanguagePacks([xml]$xmlinput)
 	}
 	# If the farm passphrase is a secure string (it would be if we prompted for input earlier), we need to convert it back to plain text for PSConfig.exe to understand it
 	If ($FarmPassphrase.GetType().Name -eq "SecureString") {$FarmPassphrase = ConvertTo-PlainText $FarmPassphrase}
-    #GPJ - Changed HKLM location to shared tools
-   	If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
-   	{
-       $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
-    else
-    {   
-      $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Shared Tools\Web Server Extensions\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
+	$InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
 	$LanguagePackInstalled = (Get-Item -Path 'HKLM:\SOFTWARE\Microsoft\Shared Tools\Web Server Extensions\14.0\WSS\').GetValue("LanguagePackInstalled")
 	# If there were language packs installed we need to run psconfig to configure them
 	If (($LanguagePackInstalled -eq "1") -and ($InstalledOfficeServerLanguages.Count -gt 1))
@@ -1081,7 +1056,7 @@ Function AddManagedAccounts([xml]$xmlinput)
 					$AlreadyAdmin = $true
 				}
 				# Spawn a command window using the managed account's credentials, create the profile, and exit immediately
-				Start-Process -WorkingDirectory "$env:SYSTEMROOT\System32\" -FilePath "cmd.exe" -ArgumentList "/C" -LoadUserProfile -NoNewWindow -Credential $credAccount
+				Start-Process -FilePath "$env:SYSTEMROOT\System32\cmd.exe" -ArgumentList "/C" -LoadUserProfile -NoNewWindow -Credential $credAccount
 				# Remove managed account from local admins unless it was already there
 	    		If (-not $AlreadyAdmin) {([ADSI]"WinNT://$env:COMPUTERNAME/Administrators,group").Remove("WinNT://$ManagedAccountDomain/$ManagedAccountUser")}
 				Write-Host -BackgroundColor Blue -ForegroundColor Black "Done."
@@ -1314,12 +1289,6 @@ Function CreateMetadataServiceApp([xml]$xmlinput)
     If (ShouldIProvision($xmlinput.Configuration.ServiceApps.ManagedMetadataServiceApp) -eq $true) 
     {
     	WriteLine
-    	if((Get-IsServerInstall) -eq $false)
-    	{
-			Write-Host -ForegroundColor White " - Managed Metadata Service setup skipped for Foundation install"
-			return
-    	}
-    	
 		Try
     	{
 			$MetaDataDB = $DBPrefix+$xmlinput.Configuration.ServiceApps.ManagedMetadataServiceApp.Database
@@ -1357,9 +1326,6 @@ Function CreateMetadataServiceApp([xml]$xmlinput)
      	    # Create a Metadata Service Application
           	If((Get-SPServiceApplication | ? {$_.GetType().ToString() -eq "Microsoft.SharePoint.Taxonomy.MetadataWebServiceApplication"}) -eq $null)
     	  	{      
-            Remove-PSSnapin Microsoft.SharePoint.PowerShell
-            Load-SharePoint-Powershell
-
     			# Create Service App
        			Write-Host -ForegroundColor White " - Creating Metadata Service Application..."
                 $MetaDataServiceApp = New-SPMetadataServiceApplication -Name $MetadataServiceName -ApplicationPool $ApplicationPool -DatabaseName $MetaDataDB -AdministratorAccount $FarmAcct -FullAccessAccount $FarmAcct
@@ -1524,11 +1490,8 @@ Function CreateWebApplications([xml]$xmlinput)
 			CreateWebApp $webApp
 			ConfigureObjectCache $webApp
 			ConfigureOnlineWebPartCatalog $webApp
-			Add-LocalIntranetURL $webapp.URL
 			WriteLine
 		}
-		If (($xmlinput.Configuration.WebApplications.AddURLsToHOSTS) -eq $true)
-		{AddToHOSTS}
 	}
 	WriteLine
 }
@@ -1545,15 +1508,7 @@ Function CreateWebApp([System.Xml.XmlElement]$webApp)
     $url = $webApp.url
     $port = $webApp.port
 	$useSSL = $false
-    #GPJ - Changed HKLM location to shared tools
-   	If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
-   	{
-       $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
-    else
-    {   
-      $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Shared Tools\Web Server Extensions\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-    }
+	$InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
     If ($url -like "https://*") {$UseSSL = $true; $HostHeader = $url -replace "https://",""}        
     Else {$HostHeader = $url -replace "http://",""}
     $GetSPWebApplication = Get-SPWebApplication | Where-Object {$_.DisplayName -eq $WebAppName}
@@ -1606,13 +1561,13 @@ Function CreateWebApp([System.Xml.XmlElement]$webApp)
 		$SiteCollectionLocale = $SiteCollection.Locale
 		$SiteCollectionTime24 = $SiteCollection.Time24
 		$GetSPSiteCollection = Get-SPSite | Where-Object {$_.Url -eq $SiteURL}
-		If (($GetSPSiteCollection -eq $null) -and ($SiteURL -ne $null))
+		If ($GetSPSiteCollection -eq $null)
 		{
 			Write-Host -ForegroundColor White " - Creating Site Collection `"$SiteURL`"..."
 			# Verify that the Language we're trying to create the site in is currently installed on the server
 			$Culture = [System.Globalization.CultureInfo]::GetCultureInfo(([convert]::ToInt32($LCID)))
 			$CultureDisplayName = $Culture.DisplayName
-			If (!($InstalledOfficeServerLanguages | Where-Object {$_ -eq $Culture.Name}) -and !($InstalledOfficeServerLanguages | Where-Object {$_ -eq $LCID}))
+			If (!($InstalledOfficeServerLanguages | Where-Object {$_ -eq $Culture.Name}))
 			{
 		  		Write-Warning " - You must install the `"$Culture ($CultureDisplayName)`" Language Pack before you can create a site using LCID $LCID"
 			}
@@ -1651,7 +1606,6 @@ Function CreateWebApp([System.Xml.XmlElement]$webApp)
 			}
 		}
 		Else {Write-Host -ForegroundColor White " - Site `"$SiteCollectionName`" already provisioned."}
-		WriteLine
 	}
 }
 
@@ -1856,15 +1810,7 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
     				# Verify that the Language we're trying to create the site in is currently installed on the server
                     $MySiteCulture = [System.Globalization.CultureInfo]::GetCultureInfo(([convert]::ToInt32($MySiteLCID))) 
     		        $MySiteCultureDisplayName = $MySiteCulture.DisplayName
-          #GPJ - Changed HKLM location to shared tools
-          If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
-          {
-             $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-          }
-          else
-          {   
-            $InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Shared Tools\Web Server Extensions\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
-          }
+					$InstalledOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
 					If (!($InstalledOfficeServerLanguages | Where-Object {$_ -eq $MySiteCulture.Name}))
     				{
     		            Throw " - You must install the `"$MySiteCulture ($MySiteCultureDisplayName)`" Language Pack before you can create a site using LCID $MySiteLCID"
@@ -1913,8 +1859,6 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
 					Else {break}
     			}
     			Write-Host -BackgroundColor Blue -ForegroundColor Black $($ProfileServiceApp.Status)
-				# Wait a few seconds for the CreateUPSAsAdmin function to complete
-				Start-Sleep 10
 
 				# Get our new Profile Service App
 				$ProfileServiceApp = Get-SPServiceApplication |?{$_.DisplayName -eq $UserProfileServiceName}
@@ -1936,29 +1880,27 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
 
     			# Create variables that contains the claims principals for current (Setup) user, MySite App Pool, Portal App Pool and Content Access accounts
 				$CurrentUserAcctPrincipal = New-SPClaimsPrincipal -Identity $env:USERDOMAIN\$env:USERNAME -IdentityType WindowsSamAccountName
-    			If ($MySiteAppPoolAcct) {$MySiteAppPoolAcctPrincipal = New-SPClaimsPrincipal -Identity $MySiteAppPoolAcct -IdentityType WindowsSamAccountName}
-				If ($PortalAppPoolAcct) {$PortalAppPoolAcctPrincipal = New-SPClaimsPrincipal -Identity $PortalAppPoolAcct -IdentityType WindowsSamAccountName}
-    			If ($ContentAccessAcct) {$ContentAccessAcctPrincipal = New-SPClaimsPrincipal -Identity $ContentAccessAcct -IdentityType WindowsSamAccountName}
+    			$MySiteAppPoolAcctPrincipal = New-SPClaimsPrincipal -Identity $MySiteAppPoolAcct -IdentityType WindowsSamAccountName
+				$PortalAppPoolAcctPrincipal = New-SPClaimsPrincipal -Identity $PortalAppPoolAcct -IdentityType WindowsSamAccountName
+    			$ContentAccessAcctPrincipal = New-SPClaimsPrincipal -Identity $ContentAccessAcct -IdentityType WindowsSamAccountName
 
     			# Give 'Full Control' permissions to the current (Setup) user, MySite App Pool and Portal App Pool account claims principals
 				Grant-SPObjectSecurity $ProfileServiceAppSecurity -Principal $CurrentUserAcctPrincipal -Rights "Full Control"
 				Grant-SPObjectSecurity $ProfileServiceAppPermissions -Principal $CurrentUserAcctPrincipal -Rights "Full Control"
-    			If ($MySiteAppPoolAcct) {Grant-SPObjectSecurity $ProfileServiceAppSecurity -Principal $MySiteAppPoolAcctPrincipal -Rights "Full Control"}
-				If ($PortalAppPoolAcct) {Grant-SPObjectSecurity $ProfileServiceAppSecurity -Principal $PortalAppPoolAcctPrincipal -Rights "Full Control"}
+    			Grant-SPObjectSecurity $ProfileServiceAppSecurity -Principal $MySiteAppPoolAcctPrincipal -Rights "Full Control"
+				Grant-SPObjectSecurity $ProfileServiceAppSecurity -Principal $PortalAppPoolAcctPrincipal -Rights "Full Control"
 				# Give 'Retrieve People Data for Search Crawlers' permissions to the Content Access claims principal
-    			If ($ContentAccessAcct) {Grant-SPObjectSecurity $ProfileServiceAppSecurity -Principal $ContentAccessAcctPrincipal -Rights "Retrieve People Data for Search Crawlers"}
+    			Grant-SPObjectSecurity $ProfileServiceAppSecurity -Principal $ContentAccessAcctPrincipal -Rights "Retrieve People Data for Search Crawlers"
 
     			# Apply the changes to the User Profile service application
 				Set-SPServiceApplicationSecurity $ServiceAppIDToSecure -objectSecurity $ProfileServiceAppSecurity -Admin
 				Set-SPServiceApplicationSecurity $ServiceAppIDToSecure -objectSecurity $ProfileServiceAppPermissions
 				
-				If ($PortalAppPoolAcct)
-				{
-					# Grant the Portal App Pool account rights to the Profile DB
-					$ProfileDB = $DBPrefix+$UserProfile.ProfileDB
-					Write-Host -ForegroundColor White " - Granting $PortalAppPoolAcct rights to $ProfileDB..."
-					Get-SPDatabase | ? {$_.Name -eq $ProfileDB} | Add-SPShellAdmin -UserName $PortalAppPoolAcct
-				}
+				# Grant the Portal App Pool account rights to the Profile DB
+				$ProfileDB = $DBPrefix+$UserProfile.ProfileDB
+				Write-Host -ForegroundColor White " - Granting $PortalAppPoolAcct rights to $ProfileDB..."
+				Get-SPDatabase | ? {$_.Name -eq $ProfileDB} | Add-SPShellAdmin -UserName $PortalAppPoolAcct
+				
 				Write-Host -ForegroundColor White " - Enabling the Activity Feed Timer Job.."
 				If ($ProfileServiceApp) {Get-SPTimerJob | ? {$_.TypeName -eq "Microsoft.Office.Server.ActivityFeed.ActivityFeedUPAJob"} | Enable-SPTimerJob}
 				
@@ -2041,9 +1983,10 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
 					If (CheckForSP1)
 					{
 						Write-Host -ForegroundColor White " - Creating a default Profile Sync connection..."
+						##$ProfileServiceApp = Get-SPServiceApplication | ? {$_.GetType().ToString() -eq "Microsoft.Office.Server.Administration.UserProfileApplication"}
 						$ProfileServiceApp = Get-SPServiceApplication |?{$_.DisplayName -eq $UserProfileServiceName}
-						# Thanks to Codeplex user Reshetkov for this ingenious one-liner to build the default domain OU
-						$ConnectionSyncOU = "DC="+$env:USERDNSDOMAIN -replace "\.",",DC="
+						$Domain,$TLD = $env:USERDNSDOMAIN -split "\."
+						$ConnectionSyncOU = "DC=$Domain,DC=$TLD"
 						$SyncConnectionDomain,$SyncConnectionAcct = ($UserProfile.SyncConnectionAccount) -split "\\"
 						$AddProfileSyncCmd = @"
 Add-PsSnapin Microsoft.SharePoint.PowerShell
@@ -2060,7 +2003,7 @@ Else {Write-Host -ForegroundColor White " - Done.";Start-Sleep 15}
 						$AddProfileScriptFile = "$env:TEMP\AutoSPInstaller-AddProfileSyncCmd.ps1"
 						$AddProfileSyncCmd | Out-File $AddProfileScriptFile
 						# Run our Add-SPProfileSyncConnection script as the Farm Account - doesn't seem to work otherwise
-		                                Start-Process -WorkingDirectory $PSHOME -FilePath "powershell.exe" -Credential $FarmCredential -ArgumentList "-Command Start-Process -WorkingDirectory `"'$PSHOME'`" -FilePath `"'powershell.exe'`" -ArgumentList `"'$AddProfileScriptFile'`" -Verb Runas" -Wait
+						Start-Process $PSHOME\powershell.exe -Credential $FarmCredential -ArgumentList "-Command Start-Process $PSHOME\powershell.exe -ArgumentList `"'$AddProfileScriptFile'`" -Verb Runas" -Wait
 						# Give Add-SPProfileSyncConnection time to complete before continuing
 						Start-Sleep 120
 						Remove-Item -LiteralPath $AddProfileScriptFile -Force -ErrorAction SilentlyContinue
@@ -2112,7 +2055,7 @@ Function CreateUPSAsAdmin([xml]$xmlinput)
 		Write-Output "`$ProfileDBId = Get-SPDatabase | ? {`$_.Name -eq `"$ProfileDB`"}" | Out-File $ScriptFile -Width 400 -Append
 		Write-Output "Add-SPShellAdmin -UserName `"$env:USERDOMAIN\$env:USERNAME`" -database `$ProfileDBId" | Out-File $ScriptFile -Width 400 -Append
 		# Start a process under the Farm Account's credentials, then spawn an elevated process within to finally execute the script file that actually creates the UPS
-		Start-Process -WorkingDirectory $PSHOME -FilePath "powershell.exe" -Credential $FarmCredential -ArgumentList "-Command Start-Process -WorkingDirectory `"'$PSHOME'`" -FilePath `"'powershell.exe'`" -ArgumentList `"'$ScriptFile'`" -Verb Runas" -Wait
+		Start-Process $PSHOME\powershell.exe -Credential $FarmCredential -ArgumentList "-Command Start-Process $PSHOME\powershell.exe -ArgumentList `"'$ScriptFile'`" -Verb Runas" -Wait
 	}
 	Catch 
 	{
@@ -2185,7 +2128,7 @@ Function CreateSPUsageApp([xml]$xmlinput)
 				Write-Host -ForegroundColor White " - Provisioning SP Usage Application..."
 				New-SPUsageApplication -Name $SPUsageApplicationName -DatabaseServer $DBServer -DatabaseName $SPUsageDB | Out-Null
 				# Need this to resolve a known issue with the Usage Application Proxy not automatically starting/provisioning
-				# Thanks and credit to Jesper Nygaard Schi?tt (jesper@schioett.dk) per http://autospinstaller.codeplex.com/Thread/View.aspx?ThreadId=237578 ! 
+				# Thanks and credit to Jesper Nygaard Schiøtt (jesper@schioett.dk) per http://autospinstaller.codeplex.com/Thread/View.aspx?ThreadId=237578 ! 
 				Write-Host -ForegroundColor White " - Fixing Usage and Health Data Collection Proxy..."
 				$SPUsageApplicationProxy = Get-SPServiceApplicationProxy | where {$_.DisplayName -eq $SPUsageApplicationName}
 				$SPUsageApplicationProxy.Provision()
@@ -2204,7 +2147,7 @@ Function CreateSPUsageApp([xml]$xmlinput)
 #EndRegion
 
 #Region Create Web Analytics Service Application
-# Thanks and credit to Jesper Nygaard Schi?tt (jesper@schioett.dk) per http://autospinstaller.codeplex.com/Thread/View.aspx?ThreadId=237578 !
+# Thanks and credit to Jesper Nygaard Schiøtt (jesper@schioett.dk) per http://autospinstaller.codeplex.com/Thread/View.aspx?ThreadId=237578 !
 
 Function CreateWebAnalyticsApp([xml]$xmlinput)
 {
@@ -2555,7 +2498,7 @@ Function ConfigureTracing ([xml]$xmlinput)
 
 # Original script for SharePoint 2010 beta2 by Gary Lapointe ()
 # 
-# Modified by S?ren Laurits Nielsen (soerennielsen.wordpress.com):
+# Modified by Søren Laurits Nielsen (soerennielsen.wordpress.com):
 # 
 # Modified to fix some errors since some cmdlets have changed a bit since beta 2 and added support for "ShareName" for 
 # the query component. It is required for non DC computers. 
@@ -2838,13 +2781,9 @@ function CreateEnterpriseSearchServiceApp([xml]$xmlinput)
 			$username = $spservice.username
 			$password = ConvertTo-SecureString "$($spservice.password)" -AsPlaintext -Force
 		}
-		
-		if((Get-IsServerInstall) -eq $true)
-		{
-      Write-Host -ForegroundColor White " - Applying service account $username to Search Service..."
-      Get-SPEnterpriseSearchService | Set-SPEnterpriseSearchService -ServiceAccount $username -ServicePassword $password
-      If (!$?) {Write-Error " - An error occurred setting the Search Service account!"}
-		}
+		Write-Host -ForegroundColor White " - Applying service account $username to Search Service..."
+		Get-SPEnterpriseSearchService | Set-SPEnterpriseSearchService -ServiceAccount $username -ServicePassword $password
+		If (!$?) {Write-Error " - An error occurred setting the Search Service account!"}
 		WriteLine
 	}
 }
@@ -3265,9 +3204,6 @@ Function CreatePerformancePointServiceApp ([xml]$xmlinput)
 		$Application = Get-SPPerformancePointServiceApplication | ? {$_.Name -eq $ServiceConfig.Name}
 	    If ($Application)
 		{
-			$FarmAcct = $xmlinput.Configuration.Farm.Account.Username
-			Write-Host -ForegroundColor White " - Granting $FarmAcct rights to database $PerformancePointDB..."
-			Get-SPDatabase | Where {$_.Name -eq $PerformancePointDB} | Add-SPShellAdmin -UserName $FarmAcct
 			Write-Host -ForegroundColor White " - Setting PerformancePoint Data Source Unattended Service Account..."
 			$PerformancePointAcct = $ServiceConfig.UnattendedIDUser
 		    $PerformancePointAcctPWD = $ServiceConfig.UnattendedIDPassword
@@ -3464,14 +3400,7 @@ Function Load-SharePoint-Powershell
 	{
     	WriteLine
 		Write-Host -ForegroundColor White " - Loading SharePoint Powershell Snapin"
-		Try 
-		{
-			Add-PsSnapin Microsoft.SharePoint.PowerShell
-			# Lately, loading the snapin throws an error: "System.TypeInitializationException: The type initializer for 'Microsoft.SharePoint.Utilities.SPUtility' threw an exception. ---> System.IO.FileNotFoundException:"...
-			If (!$?) {Throw}
-		}
-		# ...so we'll try a second time to add the snapin
-		Catch {Add-PsSnapin Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue | Out-Null}
+   		$PSSnapin = Add-PsSnapin Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue | Out-Null
 		WriteLine
 	}
 }
@@ -3506,11 +3435,9 @@ Function Pause
 # ===================================================================================
 Function ShouldIProvision([System.Xml.XmlNode] $node)
 {
-	If (!$node) {Return $false} # In case the node doesn't exist in the XML file
 	# Allow for comma- or space-delimited list of server names in Provision or Start attribute
 	If ($node.GetAttribute("Provision")) {$v = $node.GetAttribute("Provision").Replace(","," ")}
     ElseIf ($node.GetAttribute("Start")) {$v = $node.GetAttribute("Start").Replace(","," ")}
-	ElseIf ($node.GetAttribute("Install")) {$v = $node.GetAttribute("Install").Replace(","," ")}
 	If ($v -eq $true) { Return $true; }
 	$v = " " + $v.ToUpper() + " ";
 	If ($v.IndexOf(" " + $env:COMPUTERNAME.ToUpper() + " ") -ge 0) { Return $true; }
@@ -3765,21 +3692,20 @@ Function Run-HealthAnalyzerJobs
 }
 
 # ====================================================================================
-# Func: InstallSMTP
-# Desc: Installs the SMTP Server Windows feature
+# Func: Add-SMTP
+# Desc: Adds the SMTP Server Windows feature
 # ====================================================================================
-Function InstallSMTP
+Function Add-SMTP
 {
-	If (ShouldIProvision($xmlinput.Configuration.Farm.Services.SMTP) -eq $true)
-	{
-		WriteLine
-		Write-Host -ForegroundColor White " - Installing SMTP Server feature..."
-		Import-Module ServerManager
-		Add-WindowsFeature -Name SMTP-Server | Out-Null
-		If (!($?)) {Throw " - Failed to install SMTP Server!"}
-		Write-Host -ForegroundColor White " - Done."
-		WriteLine
-	}
+	WriteLine
+	Write-Host -ForegroundColor White " - Installing SMTP Server feature..."
+
+	Import-Module ServerManager
+	Add-WindowsFeature -Name SMTP-Server | Out-Null
+	If (!($?)) {Throw " - Failed to install SMTP Server!"}
+
+	Write-Host -ForegroundColor White " - Done."
+	WriteLine
 }
 
 # ====================================================================================
@@ -3852,68 +3778,4 @@ Function CheckIfUpgradeNeeded
 		Return $false
 	}
 }
-
-# ====================================================================================
-# Func: AddToHOSTS
-# Desc: This writes URLs to the server's local hosts file and points them to the server itself
-# From: Check http://toddklindt.com/loopback for more information
-# Copyright Todd Klindt 2011
-# Originally published to http://www.toddklindt.com/blog
-# ====================================================================================
-Function AddToHOSTS
-{
-	Write-Host -ForegroundColor White " - Adding HOSTS file entries for local resolution..."
-	# Make backup copy of the Hosts file with today's date
-	$hostsfile = "$env:windir\System32\drivers\etc\HOSTS"
-	$date = Get-Date -UFormat "%y%m%d%H%M%S"
-	$filecopy = $hostsfile + '.' + $date + '.copy'
-	Write-Host -ForegroundColor White " - Backing up HOSTS file to:"
-	Write-Host -ForegroundColor White " - $filecopy"
-	Copy-Item $hostsfile -Destination $filecopy
-
-	# Get a list of the AAMs and weed out the duplicates
-	$hosts = Get-SPAlternateURL | ForEach-Object {$_.incomingurl.replace("https://","").replace("http://","")} | where-Object { $_.tostring() -notlike "*:*" } | Select-Object -Unique
-	 
-	# Get the contents of the Hosts file
-	$file = Get-Content $hostsfile
-	$file = $file | Out-String
-
-	# Write the AAMs to the hosts file, unless they already exist.
-	ForEach ($hostname in $hosts)
-	{
-		If ($file.contains($hostname))
-		{Write-Host -ForegroundColor White " - HOSTS file entry for `"$hostname`" already exists - skipping."} 
-		Else
-		{
-			Write-Host -ForegroundColor White " - Adding HOSTS file entry for `"$hostname`"..."
-			Add-Content -Path $hostsfile -Value "`r"
-			Add-Content -Path $hostsfile -value "127.0.0.1 `t $hostname"
-			$KeepHOSTSCopy = $true
-		}
-	}
-	If (!$KeepHOSTSCopy)
-	{
-		Write-Host -ForegroundColor White " - Deleting HOSTS backup file since no changes were made..."
-		Remove-Item $filecopy
-	}
-}
-
-# ====================================================================================
-# Func: Add-LocalIntranetURL
-# Desc: Adds a URL to the local Intranet zone (Internet Control Panel) to allow pass-through authentication in Internet Explorer (avoid prompts)
-# ====================================================================================
-Function Add-LocalIntranetURL ($url)
-{
-	If (($url -like "*.*") -and (($webApp.AddURLToLocalIntranetZone) -eq $true))
-	{
-		$url = $url -replace "https://",""
-		$url = $url -replace "http://",""
-		$SplitURL = $url -split "\."
-		$urlDomain = $SplitURL[-2] + "." + $SplitURL[-1]
-		Write-Host -ForegroundColor White " - Adding *.$urlDomain to local Intranet security zone..."
-		New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains" -Name $urlDomain -ItemType Leaf -Force | Out-Null
-		New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\$urlDomain" -Name '*' -value "1" -PropertyType dword -Force | Out-Null
-	}
-}
-
 #EndRegion
