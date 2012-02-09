@@ -3,7 +3,6 @@ param
     [string]$InputFile = $(throw '- Need parameter input file (e.g. "c:\SP2010\AutoSPInstaller\AutoSPInstallerInput.xml")')
 )
 
-##$xmlinput = [xml] (get-content $InputFile)
 # Globally update all instances of "localhost" in the input file to actual local server name
 [xml]$xmlinput = (Get-Content $InputFile) -replace ("localhost", $env:COMPUTERNAME)
 
@@ -65,8 +64,9 @@ Function Run-Install
 	DisableServices $xmlinput
 	DisableCRLCheck $xmlinput
 	InstallPrerequisites $xmlinput
+	ConfigureIISLogging $xmlinput
 	InstallSharePoint $xmlinput
-	InstallOfficeWebApps ($xmlinput)
+	InstallOfficeWebApps $xmlinput
 	InstallLanguagePacks $xmlinput
 	FixTaxonomyPickerBug
 }
@@ -75,48 +75,50 @@ Function Run-Install
 #Region Setup Farm
 Function Setup-Farm
 {
-    [System.Management.Automation.PsCredential]$farmCredential  = GetFarmCredentials ($xmlinput) 
-    [security.securestring]$SecPhrase = GetSecureFarmPassphrase ($xmlinput)
-    ConfigureFarmAdmin ($xmlinput)
+    [System.Management.Automation.PsCredential]$farmCredential  = GetFarmCredentials $xmlinput
+    [security.securestring]$SecPhrase = GetSecureFarmPassphrase $xmlinput
+    ConfigureFarmAdmin $xmlinput
     Load-SharePoint-Powershell
-    CreateOrJoinFarm ($xmlinput) ([security.securestring]$SecPhrase) ([System.Management.Automation.PsCredential]$farmCredential)
-    CheckFarmTopology ($xmlinput)
-    ConfigureFarm ($xmlinput)
-    ConfigureOfficeWebApps ($xmlinput)
-    ConfigureLanguagePacks ($xmlinput)
-    AddManagedAccounts ($xmlinput)   
-    CreateWebApplications ($xmlinput)
+    CreateOrJoinFarm $xmlinput ([security.securestring]$SecPhrase) ([System.Management.Automation.PsCredential]$farmCredential)
+    CheckFarmTopology $xmlinput
+    ConfigureFarm $xmlinput
+    ConfigureDiagnosticLogging $xmlinput
+    ConfigureOfficeWebApps $xmlinput
+    ConfigureLanguagePacks $xmlinput
+    AddManagedAccounts $xmlinput
+    CreateWebApplications $xmlinput
 }
 #EndRegion
 
 #Region Setup Services
 Function Setup-Services
 {
-    StartSandboxedCodeService ($xmlinput)
-    CreateMetadataServiceApp ($xmlinput)
+    StartSandboxedCodeService $xmlinput
+    CreateMetadataServiceApp $xmlinput
 	StartSearchQueryAndSiteSettingsService
-	StartClaimsToWindowsTokenService ($xmlinput)
-	CreateUserProfileServiceApplication ($xmlinput)
-	CreateStateServiceApp ($xmlinput)
-	CreateSPUsageApp ($xmlinput)
-	CreateWebAnalyticsApp ($xmlinput)
-	CreateSecureStoreServiceApp ($xmlinput)
-	ConfigureFoundationSearch ($xmlinput)
-	ConfigureTracing ($xmlinput)
-	CreateEnterpriseSearchServiceApp ($xmlinput)
-	CreateBusinessDataConnectivityServiceApp ($xmlinput)
-	CreateExcelServiceApp ($xmlinput)
-	CreateAccessServiceApp ($xmlinput)
-	CreateVisioServiceApp ($xmlinput)
-	CreatePerformancePointServiceApp ($xmlinput)
-	CreateWordAutomationServiceApp ($xmlinput)
-	CreateExcelOWAServiceApp ($xmlinput)
-	CreatePowerPointServiceApp ($xmlinput)
-	CreateWordViewingServiceApp ($xmlinput)
-	InstallSMTP ($xmlinput)
-	ConfigureOutgoingEmail ($xmlinput)
-	Configure-PDFSearchAndIcon ($xmlinput)
-	InstallForeFront ($xmlinput)
+	StartClaimsToWindowsTokenService $xmlinput
+	CreateUserProfileServiceApplication $xmlinput
+	CreateStateServiceApp $xmlinput
+	CreateSPUsageApp $xmlinput
+	ConfigureUsageLogging $xmlinput
+	CreateWebAnalyticsApp $xmlinput
+	CreateSecureStoreServiceApp $xmlinput
+	ConfigureFoundationSearch $xmlinput
+	ConfigureTracing $xmlinput
+	CreateEnterpriseSearchServiceApp $xmlinput
+	CreateBusinessDataConnectivityServiceApp $xmlinput
+	CreateExcelServiceApp $xmlinput
+	CreateAccessServiceApp $xmlinput
+	CreateVisioServiceApp $xmlinput
+	CreatePerformancePointServiceApp $xmlinput
+	CreateWordAutomationServiceApp $xmlinput
+	CreateExcelOWAServiceApp $xmlinput
+	CreatePowerPointServiceApp $xmlinput
+	CreateWordViewingServiceApp $xmlinput
+	InstallSMTP $xmlinput
+	ConfigureOutgoingEmail $xmlinput
+	Configure-PDFSearchAndIcon $xmlinput
+	InstallForeFront $xmlinput
 }
 #EndRegion
 
@@ -168,11 +170,11 @@ Function Finalize-Install
 	
 	Write-Host -ForegroundColor White " - Completed!`a"
 	$Host.UI.RawUI.WindowTitle = " -- Completed -- "
-	$EndDate = Get-Date
+	$env:EndDate = Get-Date
 	Write-Host -ForegroundColor White "-----------------------------------"
 	Write-Host -ForegroundColor White "| Automated SP2010 install script |"
-	Write-Host -ForegroundColor White "| Started on: $StartDate |"
-	Write-Host -ForegroundColor White "| Completed:  $EndDate |"
+	Write-Host -ForegroundColor White "| Started on: $env:StartDate |"
+	Write-Host -ForegroundColor White "| Completed:  $env:EndDate |"
 	Write-Host -ForegroundColor White "-----------------------------------"
 
 	# Launch any site collections we created
@@ -196,6 +198,12 @@ Function Finalize-Install
 #Region MAIN - Check for input file and start the install
 
 StartTracing
+If (!$env:StartDate) {$env:StartDate = Get-Date}
+Write-Host -ForegroundColor White "-----------------------------------"
+Write-Host -ForegroundColor White "| Automated SP2010 install script |"
+Write-Host -ForegroundColor White "| Started on: $env:StartDate |"
+Write-Host -ForegroundColor White "-----------------------------------"
+
 Try 
 {
 	PrepForInstall
@@ -207,28 +215,41 @@ Try
 Catch 
 {
 	WriteLine
-	Write-Host -ForegroundColor Yellow "Script aborted!"	
+	Write-Host -ForegroundColor Yellow " - Script aborted!"	
 	If ($_.FullyQualifiedErrorId -ne $null -and $_.FullyQualifiedErrorId.StartsWith(" - ")) 
 	{
-		#Error messages starting " - " are thrown directly from this script
+		# Error messages starting with " - " are thrown directly from this script
 		Write-Host -ForegroundColor Red $_.FullyQualifiedErrorId
+	}
+	# Lately, loading the snapin throws an error: "System.TypeInitializationException: The type initializer for 'Microsoft.SharePoint.Utilities.SPUtility' threw an exception. ---> System.IO.FileNotFoundException:"...
+	ElseIf ($_.Exception.Message -like "*Microsoft.SharePoint.Utilities.SPUtility*")
+	{
+        Write-Host -ForegroundColor Yellow " - A known (annoying) issue occurred loading the SharePoint Powershell snapin."
+        Write-Host -ForegroundColor Yellow " - We need to re-launch the script to clear this condition."
+        $ScriptCommandLine = $($MyInvocation.Line)
+        Write-Host -ForegroundColor White " - Re-Launching:"
+        Write-Host -ForegroundColor White " - $ScriptCommandLine"
+        Start-Process -WorkingDirectory $PSHOME -FilePath "powershell.exe" -ArgumentList "$ScriptCommandLine" -Verb RunAs
+        Start-Sleep 10
+        Exit
 	}
 	Else
 	{
 		#Other error messages are exceptions. Can't find a way to make this Red
 		$_ | Format-List -Force
 	}
-	$EndDate = Get-Date
+	$env:EndDate = Get-Date
 	Write-Host -ForegroundColor White "-----------------------------------"
 	Write-Host -ForegroundColor White "| Automated SP2010 install script |"
-	Write-Host -ForegroundColor White "| Started on: $StartDate |"
-	Write-Host -ForegroundColor White "| Aborted:    $EndDate |"
+	Write-Host -ForegroundColor White "| Started on: $env:StartDate |"
+	Write-Host -ForegroundColor White "| Aborted:    $env:EndDate |"
 	Write-Host -ForegroundColor White "-----------------------------------"
 }
 Finally 
 {
-	Stop-Transcript
-	Pause
+    Stop-Transcript
+	If ($ScriptCommandLine) {Exit}
+	Else {Pause}
 	Invoke-Item $LogFile
 }
 

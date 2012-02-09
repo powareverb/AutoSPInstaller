@@ -6,25 +6,25 @@
 Function ValidatePassphrase([xml]$xmlinput)
 {
 	# Check if passphrase is supplied
-	$script:FarmPassphrase = $xmlinput.Configuration.Farm.Passphrase
+	$FarmPassphrase = $xmlinput.Configuration.Farm.Passphrase
 	If (!($FarmPassphrase) -or ($FarmPassphrase -eq ""))
 	{		
 		Return
 	}
 	$groups=0
-	If ($script:FarmPassphrase -match "[a-z]") { $groups = $groups + 1 }
-	If ($script:FarmPassphrase -match "[A-Z]") { $groups = $groups + 1 }
-	If ($script:FarmPassphrase -match "[0-9]") { $groups = $groups + 1 }
-	If ($script:FarmPassphrase -match "[^a-zA-Z0-9]") { $groups = $groups + 1 }
+	If ($FarmPassphrase -match "[a-z]") { $groups = $groups + 1 }
+	If ($FarmPassphrase -match "[A-Z]") { $groups = $groups + 1 }
+	If ($FarmPassphrase -match "[0-9]") { $groups = $groups + 1 }
+	If ($FarmPassphrase -match "[^a-zA-Z0-9]") { $groups = $groups + 1 }
 	
 	If ($groups -lt 3 )
 	{
-		Write-Host -ForegroundColor Yellow " - Farm passphrase does not SharePoint complexity requirements. It must be 8 characters or longer and contain three of the following groups:"
+		Write-Host -ForegroundColor Yellow " - Farm passphrase does not meet complexity requirements. It must be 8 characters or longer and contain three of the following groups:"
 		Write-Host -ForegroundColor Yellow " - Upper case letters"
 		Write-Host -ForegroundColor Yellow " - Lower case letters"
 		Write-Host -ForegroundColor Yellow " - Digits"
 		Write-Host -ForegroundColor Yellow " - Other Characters"
-		Throw " - Farm passphrase does not meet SharePoint complexity requirements."
+		Throw " - Farm passphrase does not meet complexity requirements."
 	}
 }
 #EndRegion
@@ -39,7 +39,7 @@ Function ValidateCredentials([xml]$xmlinput)
 		Throw " - You are running this script under a local machine user account. You must be a domain user"
 	}
 	
-	ForEach($node in $xmlinput.SelectNodes("//*[@Password]|//*[@password]|//*[@ContentAccessAccountPWD]|//*[@UnattendedIDPassword]|//*[Password]|//*[password]|//*[ContentAccessAccountPWD]|//*[UnattendedIDPassword]"))
+	ForEach($node in $xmlinput.SelectNodes("//*[@Password]|//*[@password]|//*[@ContentAccessAccountPassword]|//*[@UnattendedIDPassword]|//*[Password]|//*[password]|//*[ContentAccessAccountPassword]|//*[UnattendedIDPassword]"))
 	{													
 		$user = (GetFromNode $node "username")
 		If ($user -eq "") { $user = (GetFromNode $node "Username") }
@@ -49,7 +49,7 @@ Function ValidateCredentials([xml]$xmlinput)
 		
 		$password = (GetFromNode $node "password")
 		If ($password -eq "") { $password = (GetFromNode $node "Password") }
-		If ($password -eq "") { $password = (GetFromNode $node "ContentAccessAccountPWD") }
+		If ($password -eq "") { $password = (GetFromNode $node "ContentAccessAccountPassword") }
 		If ($password -eq "") { $password = (GetFromNode $node "UnattendedIDPassword") }
 			
 		If (($password -ne "") -and ($user -ne "")) 
@@ -60,7 +60,7 @@ Function ValidateCredentials([xml]$xmlinput)
 			If ($dom.Path -eq $null)
 			{
 				Write-Host -BackgroundColor Red -ForegroundColor Black "Invalid!"
-				Throw " - Account " + $user + " is not valid. Check username and password in each place this account is used."				
+                                $AcctInvalid = $true
 			}
 			Else 
 			{
@@ -68,6 +68,7 @@ Function ValidateCredentials([xml]$xmlinput)
 			}
 		}
 	}
+        If ($AcctInvalid) {Throw " - At least one set of credentials is invalid.`n - Check usernames and passwords in each place they are used."}
 	WriteLine
 }
 
@@ -93,22 +94,22 @@ Function RemoveIEEnhancedSecurity([xml]$xmlinput)
 	If ($xmlinput.Configuration.Install.Disable.IEEnhancedSecurity -eq "True") 
 	{
 		Write-Host -ForegroundColor White " - Disabling IE Enhanced Security..."
-		Set-ItemProperty -Path "Registry::\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name isinstalled -Value 0
-		Set-ItemProperty -Path "Registry::\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}" -Name isinstalled -Value 0
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name isinstalled -Value 0
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}" -Name isinstalled -Value 0
 		Rundll32 iesetup.dll, IEHardenLMSettings,1,True
 		Rundll32 iesetup.dll, IEHardenUser,1,True
 		Rundll32 iesetup.dll, IEHardenAdmin,1,True
-		If (Test-Path "Registry::\HKEY_CURRENT_USER\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}") 
+		If (Test-Path "HKCU:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}") 
 		{
-			Remove-Item -Path "Registry::\HKEY_CURRENT_USER\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+			Remove-Item -Path "HKCU:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
 		}
-		If (Test-Path "Registry::\HKEY_CURRENT_USER\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}")
+		If (Test-Path "HKCU:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}")
 		{
-			Remove-Item -Path "Registry::\HKEY_CURRENT_USER\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+			Remove-Item -Path "HKCU:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
 		}
 		
 		#This doesn't always exist
-		Remove-ItemProperty "Registry::\HKEY_CURRENT_USER\SOFTWARE\Microsoft\Internet Explorer\Main" "First Home Page" -ErrorAction SilentlyContinue
+		Remove-ItemProperty "HKCU:\SOFTWARE\Microsoft\Internet Explorer\Main" "First Home Page" -ErrorAction SilentlyContinue
 	}	
 	Else 
 	{
@@ -122,7 +123,7 @@ Function RemoveIEEnhancedSecurity([xml]$xmlinput)
 Function DisableCRLCheck([xml]$xmlinput)
 {
 	WriteLine
-	If ($xmlinput.Configuration.Install.Disable.CertificateRevocationListCheck-eq "True") 
+	If ($xmlinput.Configuration.Install.Disable.CertificateRevocationListCheck -eq "True") 
 	{
 		Write-Host -ForegroundColor White " - Disabling Certificate Revocation List (CRL) check..."
 		ForEach($bitsize in ("","64")) 
@@ -151,15 +152,9 @@ Function DisableCRLCheck([xml]$xmlinput)
 #Region Start logging to user's desktop
 Function StartTracing
 {
-    $script:LogTime = Get-Date -Format yyyy-MM-dd_h-mm
+    $LogTime = Get-Date -Format yyyy-MM-dd_h-mm
     $script:LogFile = "$env:USERPROFILE\Desktop\AutoSPInstaller-$LogTime.rtf"
     Start-Transcript -Path $LogFile -Force
-    
-    $script:StartDate = Get-Date
-    Write-Host -ForegroundColor White "-----------------------------------"
-    Write-Host -ForegroundColor White "| Automated SP2010 install script |"
-    Write-Host -ForegroundColor White "| Started on: $StartDate |"
-    Write-Host -ForegroundColor White "-----------------------------------"
 }
 #EndRegion
 
@@ -533,7 +528,7 @@ Function ConfigureOfficeWebApps([xml]$xmlinput)
 			Write-Host -ForegroundColor White " - Configuring Office Web Apps..."
 			# Install Help Files
 			Write-Host -ForegroundColor White " - Installing Help Collection..."
-			Install-SPHelpCollection -All
+			#Install-SPHelpCollection -All
 			# Install application content 
 			Write-Host -ForegroundColor White " - Installing Application Content..."
 			Install-SPApplicationContent
@@ -588,8 +583,7 @@ Function InstallLanguagePacks([xml]$xmlinput)
             If (!$Language)
 			{
     	        Write-Host -ForegroundColor Blue " - Installing extracted language pack $LanguagePackFolder..." -NoNewline
-    	        #Start-Process -WorkingDirectory "$bits\LanguagePacks\$LanguagePackFolder\" -FilePath "setup.exe" -ArgumentList "/config $bits\LanguagePacks\$LanguagePackFolder\Files\SetupSilent\config.xml"
-    	        Start-Process -FilePath "$bits\LanguagePacks\$LanguagePackFolder\setup.exe" -ArgumentList "/config $bits\LanguagePacks\$LanguagePackFolder\Files\SetupSilent\config.xml"
+    	        Start-Process -WorkingDirectory "$bits\LanguagePacks\$LanguagePackFolder\" -FilePath "setup.exe" -ArgumentList "/config $bits\LanguagePacks\$LanguagePackFolder\Files\SetupSilent\config.xml"
     	        While (Get-Process -Name "setup" -ErrorAction SilentlyContinue)
     	        {
     	        	Write-Host -ForegroundColor Blue "." -NoNewline
@@ -681,8 +675,7 @@ Function InstallLanguagePacks([xml]$xmlinput)
     Write-Host -ForegroundColor White " - Currently installed languages:" 
     ForEach ($Language in $InstalledOfficeServerLanguages)
     {
-    #GPJ - Changed HKLM location to shared tools
-    	Write-Host "  -" ([System.Globalization.CultureInfo]::GetCultureInfo([int]$Language).DisplayName)
+    	Write-Host "  -" ([System.Globalization.CultureInfo]::GetCultureInfo($Language).DisplayName)
     }
 	WriteLine
 }
@@ -745,10 +738,10 @@ Function GetFarmCredentials([xml]$xmlinput)
 #Region Get Farm Passphrase
 Function GetFarmPassphrase([xml]$xmlinput)
 {
-	$script:FarmPassphrase = $xmlinput.Configuration.Farm.Passphrase
+	$FarmPassphrase = $xmlinput.Configuration.Farm.Passphrase
 	If (!($FarmPassphrase) -or ($FarmPassphrase -eq ""))
 	{
-		$script:FarmPassphrase = Read-Host -Prompt " - Please enter the farm passphrase now" -AsSecureString
+		$FarmPassphrase = Read-Host -Prompt " - Please enter the farm passphrase now" -AsSecureString
 		If (!($FarmPassphrase) -or ($FarmPassphrase -eq "")) { Throw " - Farm passphrase is required!" }
     }
 	Return $FarmPassphrase
@@ -805,9 +798,9 @@ Function UpdateProcessIdentity ($ServiceToUpdate)
 Function CreateOrJoinFarm([xml]$xmlinput, $SecPhrase, $farmCredential)
 {
     WriteLine
-	Start-SPAssignment -Global | Out-Null
+	##Start-SPAssignment -Global | Out-Null
 
-    $script:ConfigDB = $DBPrefix+$xmlinput.Configuration.Farm.Database.ConfigDB
+    $ConfigDB = $DBPrefix+$xmlinput.Configuration.Farm.Database.ConfigDB
     
     # Look for an existing farm and join the farm if not already joined, or create a new farm
     Try
@@ -862,7 +855,7 @@ Function CreateCentralAdmin([xml]$xmlinput)
 		Try
 		{
 			$CentralAdminPort = $xmlinput.Configuration.Farm.CentralAdmin.Port
-			# Check if there is already a Central Admin provisioned in the farm (by querying web apps by port); if not, create one
+			# Check if there is already a Central Admin provisioned in the farm; if not, create one
 			If (!(Get-SPWebApplication -IncludeCentralAdministration | ? {$_.Url -like "*:$CentralAdminPort*"}))
 			{
 				# Create Central Admin for farm
@@ -870,14 +863,23 @@ Function CreateCentralAdmin([xml]$xmlinput)
 				$NewCentralAdmin = New-SPCentralAdministration -Port $CentralAdminPort -WindowsAuthProvider "NTLM" -ErrorVariable err
 				If (-not $?) {Throw " - Error creating central administration application"}
 				Write-Host -ForegroundColor Blue " - Waiting for Central Admin site..." -NoNewline
-				$CentralAdmin = Get-SPWebApplication -IncludeCentralAdministration | ? {$_.Url -like "http://$($env:COMPUTERNAME):$CentralAdminPort*"}
+				$CentralAdmin = Get-SPWebApplication -IncludeCentralAdministration | ? {$_.Url -like "*$($env:COMPUTERNAME):$CentralAdminPort*"}
 				While ($CentralAdmin.Status -ne "Online") 
 				{
 					Write-Host -ForegroundColor Blue "." -NoNewline
 					Start-Sleep 1
-					$CentralAdmin = Get-SPWebApplication -IncludeCentralAdministration | ? {$_.Url -like "http://$($env:COMPUTERNAME):$CentralAdminPort*"}
+					$CentralAdmin = Get-SPWebApplication -IncludeCentralAdministration | ? {$_.Url -like "*$($env:COMPUTERNAME):$CentralAdminPort*"}
 				}
 				Write-Host -BackgroundColor Blue -ForegroundColor Black $($CentralAdmin.Status)
+				If ($xmlinput.Configuration.Farm.CentralAdmin.UseSSL -eq $true)
+				{
+					Write-Host -ForegroundColor White " - Enabling SSL for Central Admin..."
+					$SSLHostHeader = $env:COMPUTERNAME
+					$SSLPort = $CentralAdminPort
+					$SSLSiteName = $CentralAdmin.DisplayName
+					New-SPAlternateURL -Url "https://$($env:COMPUTERNAME):$CentralAdminPort" -Zone Default -WebApplication $CentralAdmin | Out-Null
+					AssignCert
+				}
 			}
 			Else #Create a Central Admin site locally, with an AAM to the existing Central Admin
 			{
@@ -929,7 +931,7 @@ Function ConfigureFarm([xml]$xmlinput)
 		{
 			# Install Help Files
 				Write-Host -ForegroundColor White " - Installing Help Collection..."
-				Install-SPHelpCollection -All
+				#Install-SPHelpCollection -All
 		}
 		# Secure resources
 		Write-Host -ForegroundColor White " - Securing Resources..."
@@ -945,7 +947,7 @@ Function ConfigureFarm([xml]$xmlinput)
 		}
 		# Detect if Central Admin URL already exists, i.e. if Central Admin web app is already provisioned on the local computer
 		$CentralAdminPort = $xmlinput.Configuration.Farm.CentralAdmin.Port
-		$CentralAdmin = Get-SPWebApplication -IncludeCentralAdministration | ? {$_.Status -eq "Online"} | ? {$_.Url -like "http://$($env:COMPUTERNAME):$CentralAdminPort*"}
+		$CentralAdmin = Get-SPWebApplication -IncludeCentralAdministration | ? {$_.Status -eq "Online"} | ? {$_.Url -like "*$($env:COMPUTERNAME):$CentralAdminPort*"}
 		
 		# Provision CentralAdmin if indicated in AutoSPInstallerInput.xml and the CA web app doesn't already exist
 		If ((ShouldIProvision($xmlinput.Configuration.Farm.CentralAdmin) -eq $true) -and (!($CentralAdmin))) {CreateCentralAdmin ($xmlinput)}
@@ -1019,7 +1021,8 @@ Function ConfigureLanguagePacks([xml]$xmlinput)
 		Start-Sleep 20
 		# Run PSConfig.exe per http://technet.microsoft.com/en-us/library/cc262108.aspx
 		Start-Process -FilePath $PSConfig -ArgumentList "-cmd upgrade -inplace v2v -passphrase `"$FarmPassphrase`" -wait -force" -NoNewWindow -Wait
-   		$PSConfigLog = get-childitem "$env:CommonProgramFiles\Microsoft Shared\Web Server Extensions\14\LOGS" | ? {$_.Name -like "PSCDiagnostics*"} | Sort-Object -Descending -Property "LastWriteTime" | Select-Object -first 1
+                $PSConfigLogLocation = $((Get-SPDiagnosticConfig).LogLocation) -replace "%CommonProgramFiles%","$Env:CommonProgramFiles"
+   		$PSConfigLog = get-childitem $PSConfigLogLocation | ? {$_.Name -like "PSCDiagnostics*"} | Sort-Object -Descending -Property "LastWriteTime" | Select-Object -first 1
     	If ($PSConfigLog -eq $null) 
     	{
     		Throw " - Could not find PSConfig log file!"
@@ -1124,7 +1127,7 @@ Function AddManagedAccounts([xml]$xmlinput)
 #Region Return SP Service Account
 Function Get-spserviceaccountxml([xml]$xmlinput)
 {
-    $spservice = $xmlinput.Configuration.Farm.ManagedAccounts.ManagedAccount | Where-Object { $_.CommonName -match "spservice" }
+    $spservice = $xmlinput.Configuration.Farm.ManagedAccounts.ManagedAccount | Where-Object { $_.CommonName -eq "spservice" }
     Return $spservice
 }
 #EndRegion
@@ -1282,7 +1285,7 @@ Function StartSandboxedCodeService
     		}
     		Catch 
         	{
-        	    " - An error occurred starting the Microsoft SharePoint Foundation Sandboxed Code Service"
+        	    Throw " - An error occurred starting the Microsoft SharePoint Foundation Sandboxed Code Service"
         	}
     		#Wait
         	Write-Host -ForegroundColor Blue " - Waiting for Sandboxed Code service..." -NoNewline
@@ -1393,6 +1396,7 @@ Function CreateMetadataServiceApp([xml]$xmlinput)
     	Catch
     	{
     		Write-Output $_ 
+			Throw " - Error provisioning the Managed Metadata Service Application"
     	}
     }
 	WriteLine
@@ -1406,42 +1410,25 @@ Function CreateMetadataServiceApp([xml]$xmlinput)
 # ===================================================================================
 Function AssignCert([xml]$xmlinput)
 {
-	# Load IIS WebAdministration Snapin/Module
-	# Inspired by http://stackoverflow.com/questions/1924217/powershell-load-webadministration-in-ps1-script-on-both-iis-7-and-iis-7-5
-    $QueryOS = Gwmi Win32_OperatingSystem
-    $QueryOS = $QueryOS.Version 
-    $OS = ""
-    If ($QueryOS.contains("6.1")) {$OS = "Win2008R2"}
-    ElseIf ($QueryOS.contains("6.0")) {$OS = "Win2008"}
-    
-	Try
-	{
-		If ($OS -eq "Win2008")
-		{
-			If (!(Get-PSSnapin WebAdministration -ErrorAction SilentlyContinue))
-			{	 
-  				If (!(Test-Path $env:ProgramFiles\IIS\PowerShellSnapin\IIsConsole.psc1)) 
-				{
-					Start-Process -Wait -NoNewWindow -FilePath msiexec.exe -ArgumentList "/i `"$SPbits\PrerequisiteInstallerFiles\iis7psprov_x64.msi`" /passive /promptrestart"
-				}
-				Add-PSSnapin WebAdministration
-			}
-		}
-		Else # Win2008R2
-		{ 
-  			Import-Module WebAdministration
-		}
-	}
-	Catch
-	{
-		Write-Host -ForegroundColor White " - Could not load IIS Administration module."
-	}
+	ImportWebAdministration
 	Write-Host -ForegroundColor White " - Assigning certificate to site `"https://$SSLHostHeader`:$SSLPort`""
-	# If our SSL host header is a FQDN containing the local domain, look for an existing wildcard cert
+	# Check for sub-domains
+ 	$NumDomainLevels = ($Env:USERDNSDOMAIN -split "\.").Count
+	If ($NumDomainLevels -gt 2) # For example, corp.domain.net
+	{
+		# Get only the last two (domain + TLD)
+		$TopDomain = $Env:USERDNSDOMAIN.Split("\.")[($NumDomainLevels - 2)] + "." + $Env:USERDNSDOMAIN.Split("\.")[($NumDomainLevels - 1)]
+	}
+	# If our SSL host header is a FQDN containing the local domain (or part of it, if the local domain is a subdomain), look for an existing wildcard cert
 	If ($SSLHostHeader -like "*.$env:USERDNSDOMAIN")
 	{
 		Write-Host -ForegroundColor White " - Looking for existing `"*.$env:USERDNSDOMAIN`" wildcard certificate..."
 		$Cert = Get-ChildItem cert:\LocalMachine\My | ? {$_.Subject -like "CN=``*.$env:USERDNSDOMAIN*"}
+	}
+	ElseIf (($NumDomainLevels -gt 2) -and ($SSLHostHeader -like "*.$TopDomain"))
+	{
+		Write-Host -ForegroundColor White " - Looking for existing `"*.$TopDomain`" wildcard certificate..."
+		$Cert = Get-ChildItem cert:\LocalMachine\My | ? {$_.Subject -like "CN=``*.$TopDomain*"}
 	}
 	Else
 	{
@@ -1451,7 +1438,9 @@ Function AssignCert([xml]$xmlinput)
 	If (!$Cert)
 	{
 		Write-Host -ForegroundColor White " - None found."
-		$MakeCert = "$env:ProgramFiles\Microsoft Office Servers\14.0\Tools\makecert.exe"
+		# Get the actual location of makecert.exe in case we installed SharePoint in the non-default location
+		$SPInstallPath = (Get-Item -Path 'HKLM:\SOFTWARE\Microsoft\Office Server\14.0').GetValue("InstallPath")
+		$MakeCert = "$SPInstallPath\Tools\makecert.exe"
 		If (Test-Path "$MakeCert")
 		{
 			Write-Host -ForegroundColor White " - Creating new self-signed certificate..."
@@ -1460,6 +1449,12 @@ Function AssignCert([xml]$xmlinput)
 				# Create a new wildcard cert so we can potentially use it on other sites too
 				Start-Process -NoNewWindow -Wait -FilePath "$MakeCert" -ArgumentList "-r -pe -n `"CN=*.$env:USERDNSDOMAIN`" -eku 1.3.6.1.5.5.7.3.1 -ss My -sr localMachine -sky exchange -sp `"Microsoft RSA SChannel Cryptographic Provider`" -sy 12"
 				$Cert = Get-ChildItem cert:\LocalMachine\My | ? {$_.Subject -like "CN=``*.$env:USERDNSDOMAIN*"}
+			}
+			ElseIf (($NumDomainLevels -gt 2) -and ($SSLHostHeader -like "*.$TopDomain"))
+			{
+				# Create a new wildcard cert so we can potentially use it on other sites too
+				Start-Process -NoNewWindow -Wait -FilePath "$MakeCert" -ArgumentList "-r -pe -n `"CN=*.$TopDomain`" -eku 1.3.6.1.5.5.7.3.1 -ss My -sr localMachine -sky exchange -sp `"Microsoft RSA SChannel Cryptographic Provider`" -sy 12"
+				$Cert = Get-ChildItem cert:\LocalMachine\My | ? {$_.Subject -like "CN=``*.$TopDomain*"}
 			}
 			Else
 			{
@@ -1501,6 +1496,8 @@ Function AssignCert([xml]$xmlinput)
 		Write-Host -ForegroundColor White " - Assigning certificate `"$CertSubject`" to SSL-enabled site..."
 		#Set-Location IIS:\SslBindings -ErrorAction Inquire
 		$Cert | New-Item IIS:\SslBindings\0.0.0.0!$SSLPort -ErrorAction SilentlyContinue | Out-Null
+		Set-ItemProperty IIS:\Sites\$SSLSiteName -Name bindings -Value @{protocol="https";bindingInformation="*:$($SSLPort):$($SSLHostHeader)"}
+		## Set-WebBinding -Name $SSLSiteName -BindingInformation ":$($SSLPort):" -PropertyName Port -Value $SSLPort -PropertyName Protocol -Value https 
 		Write-Host -ForegroundColor White " - Certificate has been assigned to site `"https://$SSLHostHeader`:$SSLPort`""
 	}
 	Else {Write-Host -ForegroundColor White " - No certificates were found, and none could be created."}
@@ -1519,12 +1516,12 @@ Function CreateWebApplications([xml]$xmlinput)
 	If ($xmlinput.Configuration.WebApplications)
 	{
 		Write-Host -ForegroundColor White " - Creating web applications..."
-		ForEach ($webApp in $xmlinput.Configuration.WebApplications.WebApplication)
+		ForEach ($WebApp in $xmlinput.Configuration.WebApplications.WebApplication)
 		{
-			CreateWebApp $webApp
-			ConfigureObjectCache $webApp
-			ConfigureOnlineWebPartCatalog $webApp
-			Add-LocalIntranetURL $webapp.URL
+			CreateWebApp $WebApp
+			ConfigureObjectCache $WebApp
+			ConfigureOnlineWebPartCatalog $WebApp
+			Add-LocalIntranetURL $WebApp.URL
 			WriteLine
 		}
 		If (($xmlinput.Configuration.WebApplications.AddURLsToHOSTS) -eq $true)
@@ -1536,14 +1533,14 @@ Function CreateWebApplications([xml]$xmlinput)
 # Func: CreateWebApp
 # Desc: Create the web application
 # ===================================================================================
-Function CreateWebApp([System.Xml.XmlElement]$webApp)
+Function CreateWebApp([System.Xml.XmlElement]$WebApp)
 {
-	$account = $webApp.applicationPoolAccount
-    $WebAppName = $webApp.name
-    $AppPool = $webApp.applicationPool
-    $database = $DBPrefix+$webApp.databaseName
-    $url = $webApp.url
-    $port = $webApp.port
+	$account = $WebApp.applicationPoolAccount
+    $WebAppName = $WebApp.name
+    $AppPool = $WebApp.applicationPool
+    $database = $DBPrefix+$WebApp.databaseName
+    $url = $WebApp.url
+    $port = $WebApp.port
 	$useSSL = $false
     #GPJ - Changed HKLM location to shared tools
    	If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
@@ -1560,10 +1557,10 @@ Function CreateWebApp([System.Xml.XmlElement]$webApp)
 	If ($GetSPWebApplication -eq $null)
    	{
         Write-Host -ForegroundColor White " - Creating Web App `"$WebAppName`""
-   		If ($($webApp.useClaims) -eq $true)
+   		If ($($WebApp.useClaims) -eq $true)
   		{
   			# Configure new web app to use Claims-based authentication
-   			If ($($webApp.useBasicAuthentication) -eq $true)
+   			If ($($WebApp.useBasicAuthentication) -eq $true)
 			{
 				$AuthProvider = New-SPAuthenticationProvider -UseWindowsIntegratedAuthentication -UseBasicAuthentication
 			}
@@ -1587,16 +1584,35 @@ Function CreateWebApp([System.Xml.XmlElement]$webApp)
    			New-SPWebApplication -Name $WebAppName -ApplicationPoolAccount $account -ApplicationPool $AppPool -DatabaseName $database -HostHeader $HostHeader -Url $url -Port $port -SecureSocketsLayer:$UseSSL | Out-Null
 			If (-not $?) { Throw " - Failed to create web application" }
    		}
-		If ($UseSSL)
-		{
-    		$script:SSLHostHeader = $HostHeader
-			$script:SSLPort = $Port
-			AssignCert
-		}
-        SetupManagedPaths $webApp
+        SetupManagedPaths $WebApp
 	}	
     Else {Write-Host -ForegroundColor White " - Web app `"$WebAppName`" already provisioned."}
-	ForEach ($SiteCollection in $webApp.SiteCollections.SiteCollection)
+	If ($UseSSL)
+	{
+		$SSLHostHeader = $HostHeader
+		$SSLPort = $Port
+		$SSLSiteName = $WebAppName
+		AssignCert
+	}
+
+    # If we are provisioning any Office Web Apps, Visio, Excel, Access or PerformancePoint services, we need to grant the generic app pool account access to the newly-created content database
+    # Per http://technet.microsoft.com/en-us/library/ff829837.aspx and http://autospinstaller.codeplex.com/workitem/16224 (thanks oceanfly!)
+    If ((ShouldIProvision($xmlinput.Configuration.OfficeWebApps.ExcelService) -eq $true) -or `
+        (ShouldIProvision($xmlinput.Configuration.OfficeWebApps.PowerPointService) -eq $true) -or `
+        (ShouldIProvision($xmlinput.Configuration.OfficeWebApps.WordViewingService) -eq $true) -or `
+        (ShouldIProvision($xmlinput.Configuration.EnterpriseServiceApps.VisioService) -eq $true) -or `
+        (ShouldIProvision($xmlinput.Configuration.EnterpriseServiceApps.ExcelServices) -eq $true) -or `
+        (ShouldIProvision($xmlinput.Configuration.EnterpriseServiceApps.AccessService) -eq $true) -or `
+        (ShouldIProvision($xmlinput.Configuration.EnterpriseServiceApps.PerformancePointService) -eq $true))
+    {
+        $spservice = Get-spserviceaccountxml $xmlinput
+        Write-Host -ForegroundColor White " - Granting $($spservice.username) rights to `"$WebAppName`"..." -NoNewline
+        $wa = Get-SPWebApplication | Where-Object {$_.DisplayName -eq $WebAppName}
+        $wa.GrantAccessToProcessIdentity("$($spservice.username)")
+        Write-Host -ForegroundColor White "Done."
+    }
+
+    ForEach ($SiteCollection in $WebApp.SiteCollections.SiteCollection)
 	{
 		$SiteCollectionName = $SiteCollection.name
 		$SiteURL = $SiteCollection.siteURL
@@ -1612,7 +1628,7 @@ Function CreateWebApp([System.Xml.XmlElement]$webApp)
 			# Verify that the Language we're trying to create the site in is currently installed on the server
 			$Culture = [System.Globalization.CultureInfo]::GetCultureInfo(([convert]::ToInt32($LCID)))
 			$CultureDisplayName = $Culture.DisplayName
-			If (!($InstalledOfficeServerLanguages | Where-Object {$_ -eq $Culture.Name}) -and !($InstalledOfficeServerLanguages | Where-Object {$_ -eq $LCID}))
+			If (!($InstalledOfficeServerLanguages | Where-Object {$_ -eq $Culture.Name}))
 			{
 		  		Write-Warning " - You must install the `"$Culture ($CultureDisplayName)`" Language Pack before you can create a site using LCID $LCID"
 			}
@@ -1650,7 +1666,7 @@ Function CreateWebApp([System.Xml.XmlElement]$webApp)
 				$Site.RootWeb.Update()
 			}
 		}
-		Else {Write-Host -ForegroundColor White " - Site `"$SiteCollectionName`" already provisioned."}
+		Else {Write-Host -ForegroundColor White " - Skipping creation of site `"$SiteCollectionName`" - already provisioned."}
 		WriteLine
 	}
 }
@@ -1677,12 +1693,12 @@ Function Set-WebAppUserPolicy($wa, $userName, $displayName, $perm)
 # Func: ConfigureObjectCache
 # Desc: Applies the portal super accounts to the object cache for a web application
 # ===================================================================================
-Function ConfigureObjectCache([System.Xml.XmlElement]$webApp)
+Function ConfigureObjectCache([System.Xml.XmlElement]$WebApp)
 {
 	Try
 	{
-   		$url = $webApp.Url + ":" + $webApp.Port
-		$wa = Get-SPWebApplication | Where-Object {$_.DisplayName -eq $webApp.Name}
+   		$url = $WebApp.Url + ":" + $WebApp.Port
+		$wa = Get-SPWebApplication | Where-Object {$_.DisplayName -eq $WebApp.Name}
 		$SuperUserAcc = $xmlinput.Configuration.Farm.ObjectCacheAccounts.SuperUser
 		$SuperReaderAcc = $xmlinput.Configuration.Farm.ObjectCacheAccounts.SuperReader
 		# If the web app is using Claims auth, change the user accounts to the proper syntax
@@ -1711,15 +1727,15 @@ Function ConfigureObjectCache([System.Xml.XmlElement]$webApp)
 # Func: ConfigureOnlineWebPartCatalog
 # Desc: Enables / Disables access to the online web parts catalog for each web application
 # ===================================================================================
-Function ConfigureOnlineWebPartCatalog([System.Xml.XmlElement]$webApp)
+Function ConfigureOnlineWebPartCatalog([System.Xml.XmlElement]$WebApp)
 {
 	If ($webapp.GetAttribute("useOnlineWebPartCatalog") -ne "")
 	{
-		$url = $webApp.Url + ":" + $webApp.Port
+		$url = $WebApp.Url + ":" + $WebApp.Port
 		If ($url -like "*localhost*") {$url = $url -replace "localhost","$env:COMPUTERNAME"}
 		Write-Host -ForegroundColor White " - Setting online webpart catalog access for `"$url`""
 		
-		$wa = Get-SPWebApplication | Where-Object {$_.DisplayName -eq $webApp.Name}
+		$wa = Get-SPWebApplication | Where-Object {$_.DisplayName -eq $WebApp.Name}
 		If ($webapp.GetAttribute("useOnlineWebPartCatalog") -eq "True") 
 		{
 			$wa.AllowAccessToWebpartCatalog=$true
@@ -1736,15 +1752,15 @@ Function ConfigureOnlineWebPartCatalog([System.Xml.XmlElement]$webApp)
 # Func: SetupManagedPaths
 # Desc: Sets up managed paths for a given web application
 # ===================================================================================
-Function SetupManagedPaths([System.Xml.XmlElement]$webApp)
+Function SetupManagedPaths([System.Xml.XmlElement]$WebApp)
 {
-	$url = $webApp.Url + ":" + $webApp.Port
+	$url = $WebApp.Url + ":" + $WebApp.Port
     If ($url -like "*localhost*") {$url = $url -replace "localhost","$env:COMPUTERNAME"}
 	Write-Host -ForegroundColor White " - Setting up managed paths for `"$url`""
 
-	If ($webApp.ManagedPaths)
+	If ($WebApp.ManagedPaths)
 	{
-	    ForEach ($managedPath in $webApp.ManagedPaths.ManagedPath)
+	    ForEach ($managedPath in $WebApp.ManagedPaths.ManagedPath)
 		{
             If ($managedPath.Delete -eq "true")
             {
@@ -1850,7 +1866,7 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
     				$NewMySitesDB = New-SPContentDatabase -Name $MySiteDB -WebApplication "$MySiteURL`:$MySitePort"
     				If (-not $?) { Throw " - Failed to create My Sites content DB" }
     			}
-    			If ((Get-SPSite | Where-Object {(($_.Url -like "$MySiteURL*") -and ($_.Port -eq "$MySitePort")) -eq $null}))
+				If (!(Get-SPSite | Where-Object {(($_.Url -like "$MySiteURL*") -and ($_.Port -eq "$MySitePort"))}))
     			{
     				Write-Host -ForegroundColor White " - Creating My Sites site collection $MySiteURL`:$MySitePort..."
     				# Verify that the Language we're trying to create the site in is currently installed on the server
@@ -1878,6 +1894,7 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
     			        {
     				    	$SSLHostHeader = $MySiteHostHeader
     				    	$SSLPort = $MySitePort
+							$SSLSiteName = $MySiteName
     				    	AssignCert
     			        }
                     }
@@ -1914,7 +1931,7 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
     			}
     			Write-Host -BackgroundColor Blue -ForegroundColor Black $($ProfileServiceApp.Status)
 				# Wait a few seconds for the CreateUPSAsAdmin function to complete
-				Start-Sleep 10
+				Start-Sleep 30
 
 				# Get our new Profile Service App
 				$ProfileServiceApp = Get-SPServiceApplication |?{$_.DisplayName -eq $UserProfileServiceName}
@@ -1954,10 +1971,13 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
 				
 				If ($PortalAppPoolAcct)
 				{
-					# Grant the Portal App Pool account rights to the Profile DB
+					# Grant the Portal App Pool account rights to the Profile and Social DBs
 					$ProfileDB = $DBPrefix+$UserProfile.ProfileDB
+					$SocialDB = $DBPrefix+$UserProfile.SocialDB
 					Write-Host -ForegroundColor White " - Granting $PortalAppPoolAcct rights to $ProfileDB..."
 					Get-SPDatabase | ? {$_.Name -eq $ProfileDB} | Add-SPShellAdmin -UserName $PortalAppPoolAcct
+					Write-Host -ForegroundColor White " - Granting $PortalAppPoolAcct rights to $SocialDB..."
+					Get-SPDatabase | ? {$_.Name -eq $SocialDB} | Add-SPShellAdmin -UserName $PortalAppPoolAcct
 				}
 				Write-Host -ForegroundColor White " - Enabling the Activity Feed Timer Job.."
 				If ($ProfileServiceApp) {Get-SPTimerJob | ? {$_.TypeName -eq "Microsoft.Office.Server.ActivityFeed.ActivityFeedUPAJob"} | Enable-SPTimerJob}
@@ -2032,13 +2052,21 @@ Function CreateUserProfileServiceApplication([xml]$xmlinput)
     					Else
     					{
     						Write-Host -BackgroundColor Blue -ForegroundColor Black $($ProfileSyncService.Status)
-    						# Need to restart IIS before we can do anything with the User Profile Sync Service
-    						Write-Host -ForegroundColor White " - Restarting IIS..."
-    						Start-Process -FilePath iisreset.exe -ArgumentList "-noforce" -Wait -NoNewWindow
-    					}
+    						# Need to recycle the Central Admin app pool before we can do anything with the User Profile Sync Service
+    						Write-Host -ForegroundColor White " - Recycling Central Admin app pool..."
+                            # From http://sharepoint.nauplius.net/2011/09/iisreset-not-required-after-starting.html
+                            $appPool = gwmi -Namespace "root\MicrosoftIISv2" -class "IIsApplicationPool" | where {$_.Name -eq "W3SVC/APPPOOLS/SharePoint Central Administration v4"}
+                            $appPool.Recycle()
+							$NewlyProvisionedSync = $true
+                        }
     				}
-					# Attempt to create a sync connection; only SharePoint 2010 Service Pack 1 and above supports the Add-SPProfileSyncConnection cmdlet
-					If (CheckForSP1)
+					#Add link to resources list
+					AddResourcesLink "User Profile Administration" ("_layouts/ManageUserProfileServiceApplication.aspx?ApplicationID=" +  $ProfileServiceApp.Id)
+					
+					# Attempt to create a sync connection only on a successful, newly-provisioned User Profile Sync service
+					# We don't have the ability to check for existing connections and we don't want to overwrite/duplicate any existing sync connections
+				    # Note that this isn't really supported anyhow, and that only SharePoint 2010 Service Pack 1 and above includes the Add-SPProfileSyncConnection cmdlet
+					If ((CheckForSP1) -and ($UserProfile.CreateDefaultSyncConnection -eq $true) -and ($NewlyProvisionedSync -eq $true))
 					{
 						Write-Host -ForegroundColor White " - Creating a default Profile Sync connection..."
 						$ProfileServiceApp = Get-SPServiceApplication |?{$_.DisplayName -eq $UserProfileServiceName}
@@ -2077,7 +2105,7 @@ Else {Write-Host -ForegroundColor White " - Done.";Start-Sleep 15}
 	Catch
     {
         Write-Output $_
-		Pause
+		Throw " - Error Provisioning the User Profile Service Application"
     }
 	WriteLine
 }
@@ -2111,6 +2139,9 @@ Function CreateUPSAsAdmin([xml]$xmlinput)
 		# Grant the current install account rights to the newly-created Profile DB - needed since it's going to be running PowerShell commands against it
 		Write-Output "`$ProfileDBId = Get-SPDatabase | ? {`$_.Name -eq `"$ProfileDB`"}" | Out-File $ScriptFile -Width 400 -Append
 		Write-Output "Add-SPShellAdmin -UserName `"$env:USERDOMAIN\$env:USERNAME`" -database `$ProfileDBId" | Out-File $ScriptFile -Width 400 -Append
+		# Grant the current install account rights to the newly-created Social DB as well
+		Write-Output "`$SocialDBId = Get-SPDatabase | ? {`$_.Name -eq `"$SocialDB`"}" | Out-File $ScriptFile -Width 400 -Append
+		Write-Output "Add-SPShellAdmin -UserName `"$env:USERDOMAIN\$env:USERNAME`" -database `$SocialDBId" | Out-File $ScriptFile -Width 400 -Append
 		# Start a process under the Farm Account's credentials, then spawn an elevated process within to finally execute the script file that actually creates the UPS
 		Start-Process -WorkingDirectory $PSHOME -FilePath "powershell.exe" -Credential $FarmCredential -ArgumentList "-Command Start-Process -WorkingDirectory `"'$PSHOME'`" -FilePath `"'powershell.exe'`" -ArgumentList `"'$ScriptFile'`" -Verb Runas" -Wait
 	}
@@ -2158,6 +2189,7 @@ Function CreateStateServiceApp([xml]$xmlinput)
 		Catch
 		{
 			Write-Output $_
+			Throw " - Error provisioning the state service application"
 		}
 		WriteLine
 	}
@@ -2190,6 +2222,10 @@ Function CreateSPUsageApp([xml]$xmlinput)
 				$SPUsageApplicationProxy = Get-SPServiceApplicationProxy | where {$_.DisplayName -eq $SPUsageApplicationName}
 				$SPUsageApplicationProxy.Provision()
 				# End Usage Proxy Fix
+				Write-Host -ForegroundColor White " - Enabling usage processing timer job..."
+                                $UsageProcessingJob = Get-SPTimerJob | ? {$_.TypeName -eq "Microsoft.SharePoint.Administration.SPUsageProcessingJobDefinition"}
+                                $UsageProcessingJob.IsDisabled = $False
+                                $UsageProcessingJob.Update()                
 				Write-Host -ForegroundColor White " - Done provisioning SP Usage Application."
 			}
 			Else {Write-Host -ForegroundColor White " - SP Usage Application already provisioned."}
@@ -2197,10 +2233,199 @@ Function CreateSPUsageApp([xml]$xmlinput)
 		Catch
 		{
 			Write-Output $_
+			Throw " - Error provisioning the SP Usage Application"
 		}
 		WriteLine
 	}
 }
+#EndRegion
+
+#Region Configure Logging
+
+# ===================================================================================
+# Func: ConfigureIISLogging
+# Desc: Configures IIS Logging for the local server
+# ===================================================================================
+Function ConfigureIISLogging([xml]$xmlinput)
+{
+    WriteLine
+	$IISLogConfig = $xmlinput.Configuration.Farm.Logging.IISLogs
+	Write-Host -ForegroundColor White " - Configuring IIS logging..."
+	If (!([string]::IsNullOrEmpty($IISLogConfig.Path)))
+	{
+		$IISLogDir = $IISLogConfig.Path
+		EnsureFolder $IISLogDir
+		ImportWebAdministration
+		$OldIISLogDir = Get-WebConfigurationProperty "/system.applicationHost/sites/siteDefaults" -name logfile.directory.Value
+		$OldIISLogDir = $OldIISLogDir -replace ("%SystemDrive%","$Env:SystemDrive")
+		If ($IISLogDir -ne $OldIISLogDir) # Only change the global IIS logging location if the desired location is different than the current
+		{
+			Write-Host -ForegroundColor White " - Setting the global IIS logging location..."
+			# The line below is from http://stackoverflow.com/questions/4626791/powershell-command-to-set-iis-logging-settings
+			Set-WebConfigurationProperty "/system.applicationHost/sites/siteDefaults" -name logfile.directory -value $IISLogDir
+			If (Test-Path -Path $OldIISLogDir)
+			{
+				Write-Host -ForegroundColor White " - Moving any contents in old location $OldIISLogDir to $IISLogDir..."
+				ForEach ($Item in $(Get-ChildItem $OldIISLogDir)) 
+				{
+					Move-Item -Path $OldIISLogDir\$Item -Destination $IISLogDir -Force -ErrorAction SilentlyContinue
+				}
+			}
+		}
+	}
+	Else # Assume default value if none was specified in the XML input file
+	{
+		$IISLogDir = "$Env:SystemDrive\Inetpub\logs" # We omit the trailing \LogFiles so we can compress the entire \logs\ folder including Failed Requests etc.
+	}
+	# Finally, enable NTFS compression on the IIS log location to save disk space
+	If ($IISLogConfig.Compress -eq $true)
+	{
+		CompressFolder $IISLogDir
+	}
+    WriteLine
+}
+
+# ===================================================================================
+# Func: ConfigureDiagnosticLogging
+# Desc: Configures Diagnostic (ULS) Logging for the farm
+# From: Originally suggested by Codeplex user leowu70: http://autospinstaller.codeplex.com/discussions/254499
+# 	    And Codeplex user timiun: http://autospinstaller.codeplex.com/discussions/261598
+# ===================================================================================
+Function ConfigureDiagnosticLogging([xml]$xmlinput)
+{
+    WriteLine
+	$ULSLogConfig = $xmlinput.Configuration.Farm.Logging.ULSLogs
+	$ULSLogDir = $ULSLogConfig.LogLocation
+	$ULSLogDiskSpace = $ULSLogConfig.LogDiskSpaceUsageGB
+	$ULSLogRetention = $ULSLogConfig.DaysToKeepLogs
+	$ULSLogCutInterval = $ULSLogConfig.LogCutInterval
+	Write-Host -ForegroundColor White " - Configuring SharePoint diagnostic (ULS) logging..."	
+	If (!([string]::IsNullOrEmpty($ULSLogDir)))
+	{
+		$DoConfig = $true
+		EnsureFolder $ULSLogDir
+		$OldULSLogDir = $(Get-SPDiagnosticConfig).LogLocation
+		$OldULSLogDir = $OldULSLogDir -replace ("%CommonProgramFiles%","$Env:CommonProgramFiles")
+	}
+	Else # Assume default value if none was specified in the XML input file
+	{
+		$ULSLogDir = "$Env:CommonProgramFiles\Microsoft Shared\Web Server Extensions\14\LOGS"
+	}
+	If (!([string]::IsNullOrEmpty($ULSLogDiskSpace)))
+	{
+		$DoConfig = $true
+		$ULSLogMaxDiskSpaceUsageEnabled = $true
+	}
+	Else # Assume default values if none were specified in the XML input file
+	{
+		$ULSLogDiskSpace = 1000
+		$ULSLogMaxDiskSpaceUsageEnabled = $false
+	}
+	If (!([string]::IsNullOrEmpty($ULSLogRetention)))
+	{$DoConfig = $true}
+	Else # Assume default value if none was specified in the XML input file
+	{
+		$ULSLogRetention = 14
+	}
+	If (!([string]::IsNullOrEmpty($ULSLogCutInterval)))
+	{$DoConfig = $true}
+	Else # Assume default value if none was specified in the XML input file
+	{
+		$ULSLogCutInterval = 30
+	}
+	# Only modify the Diagnostic Config if we have specified at least one value in the XML input file
+	If ($DoConfig)
+	{
+		Write-Host -ForegroundColor White " - Setting SharePoint diagnostic (ULS) logging options:"
+		Write-Host -ForegroundColor White "  - DaysToKeepLogs: $ULSLogRetention" 
+		Write-Host -ForegroundColor White "  - LogMaxDiskSpaceUsageEnabled: $ULSLogMaxDiskSpaceUsageEnabled"
+		Write-Host -ForegroundColor White "  - LogDiskSpaceUsageGB: $ULSLogDiskSpace"
+		Write-Host -ForegroundColor White "  - LogLocation: $ULSLogDir"
+		Write-Host -ForegroundColor White "  - LogCutInterval: $ULSLogCutInterval"
+		Set-SPDiagnosticConfig -DaysToKeepLogs $ULSLogRetention -LogMaxDiskSpaceUsageEnabled:$ULSLogMaxDiskSpaceUsageEnabled -LogDiskSpaceUsageGB $ULSLogDiskSpace -LogLocation $ULSLogDir -LogCutInterval $ULSLogCutInterval
+		If ($ULSLogDir -ne $OldULSLogDir)
+		{
+			Write-Host -ForegroundColor White " - Moving any contents in old location $OldULSLogDir to $ULSLogDir..."
+			ForEach ($Item in $(Get-ChildItem $OldULSLogDir) | Where-Object {$_.Name -like "*.log"}) 
+			{
+				Move-Item -Path $OldULSLogDir\$Item -Destination $ULSLogDir -Force -ErrorAction SilentlyContinue
+			}
+		}
+	}
+	# Finally, enable NTFS compression on the ULS log location to save disk space
+	If ($ULSLogConfig.Compress -eq $true)
+	{
+		CompressFolder $ULSLogDir
+	}
+    WriteLine
+}
+
+# ===================================================================================
+# Func: ConfigureUsageLogging
+# Desc: Configures Usage Logging for the farm
+# From: Submitted by Codeplex user deedubya (http://www.codeplex.com/site/users/view/deedubya); additional tweaks by @brianlala
+# ===================================================================================
+Function ConfigureUsageLogging([xml]$xmlinput)
+{
+    WriteLine
+	If (Get-SPUsageService)
+	{
+		$UsageLogConfig = $xmlinput.Configuration.Farm.Logging.UsageLogs
+		$UsageLogDir = $UsageLogConfig.UsageLogDir
+		$UsageLogMaxSpaceGB = $UsageLogConfig.UsageLogMaxSpaceGB
+		$UsageLogCutTime = $UsageLogConfig.UsageLogCutTime
+		Write-Host -ForegroundColor White " - Configuring Usage Logging..."
+        # Syntax for command: Set-SPUsageService [-LoggingEnabled {1 | 0}] [-UsageLogLocation <Path>] [-UsageLogMaxSpaceGB <1-20>] [-Verbose]
+        # These are a per-farm settings, not per WSS Usage service application, as there can only be one per farm.
+        Try
+        {
+	        If (!([string]::IsNullOrEmpty($UsageLogDir)))
+			{
+				EnsureFolder $UsageLogDir
+				$OldUsageLogDir = $(Get-SPUsageService).UsageLogDir
+				$OldUsageLogDir = $OldUsageLogDir -replace ("%CommonProgramFiles%","$Env:CommonProgramFiles")
+			}
+			Else # Assume default value if none was specified in the XML input file
+			{
+				$UsageLogDir = "$Env:CommonProgramFiles\Microsoft Shared\Web Server Extensions\14\LOGS"
+			}
+			# UsageLogMaxSpaceGB must be between 1 and 20.
+	        If (($UsageLogMaxSpaceGB -lt 1) -or ([string]::IsNullOrEmpty($UsageLogMaxSpaceGB))) {$UsageLogMaxSpaceGB = 5} # Default value
+	        If ($UsageLogMaxSpaceGB -gt 20) {$UsageLogMaxSpaceGB = 20} # Maximum value
+	        # UsageLogCutTime must be between 1 and 1440
+	        If (($UsageLogCutTime -lt 1) -or ([string]::IsNullOrEmpty($UsageLogCutTime))) {$UsageLogCutTime = 30} # Default value
+	        If ($UsageLogCutTime -gt 1440) {$UsageLogCutTime = 1440} # Maximum value
+	        # Set-SPUsageService's LoggingEnabled is 0 for disabled, and 1 for enabled
+	        $LoggingEnabled = 1
+	        Set-SPUsageService -LoggingEnabled $LoggingEnabled -UsageLogLocation "$UsageLogDir" -UsageLogMaxSpaceGB $UsageLogMaxSpaceGB -UsageLogCutTime $UsageLogCutTime | Out-Null
+			If ($UsageLogDir -ne $OldUsageLogDir)
+			{
+				Write-Host -ForegroundColor White " - Moving any contents in old location $OldUsageLogDir to $UsageLogDir..."
+				ForEach ($Item in $(Get-ChildItem $OldUsageLogDir) | Where-Object {$_.Name -like "*.usage"}) 
+				{
+					Move-Item -Path $OldUsageLogDir\$Item -Destination $UsageLogDir -Force -ErrorAction SilentlyContinue
+				}
+			}			
+			# Finally, enable NTFS compression on the usage log location to save disk space
+			If ($UsageLogConfig.Compress -eq $true)
+			{
+				CompressFolder $UsageLogDir
+			}
+        }
+        Catch
+        {
+           	Write-Output $_
+			Throw " - Error configuring usage logging"
+        }
+		Write-Host -ForegroundColor White " - Done configuring usage logging."
+	}
+	Else 
+	{
+		Write-Host -ForegroundColor White " - No usage service; skipping usage logging config."
+	}
+    WriteLine
+}
+
 #EndRegion
 
 #Region Create Web Analytics Service Application
@@ -2248,6 +2473,7 @@ Function CreateWebAnalyticsApp([xml]$xmlinput)
 		Catch
 		{
 			Write-Output $_
+			Throw " - Error Provisioning Web Analytics Service Application"
 		}
 		WriteLine
 	}
@@ -2324,6 +2550,7 @@ Function CreateSecureStoreServiceApp
 		Catch
 		{
 			Write-Output $_
+			Throw " - Error provisioning secure store application"
 		}
 		Write-Host -ForegroundColor White " - Done creating/configuring Secure Store Service Application."
 		WriteLine
@@ -2365,6 +2592,7 @@ Function StartSearchQueryAndSiteSettingsService
 		Catch
 		{
 			Write-Output $_ 
+			Throw " - Error provisioning Search Query and Site Settings Service"
 		}
 		WriteLine
 	}
@@ -2390,7 +2618,7 @@ Function StartClaimsToWindowsTokenService
 			}
 			Catch
 			{
-        	    " - An error occurred starting $($ClaimsService.DisplayName)"
+        	    Throw " - An error occurred starting $($ClaimsService.DisplayName)"
 			}
 		    #Wait
         	Write-Host -ForegroundColor Blue " - Waiting for $($ClaimsService.DisplayName)..." -NoNewline
@@ -2487,8 +2715,8 @@ Function ConfigureFoundationSearch ([xml]$xmlinput)
 	}
 	Catch
 	{
-		$_
-		Write-Warning " - An error occurred updating the service account for SPSearch4."
+		Write-Output $_
+		Throw " - An error occurred updating the service account for SPSearch4."
 	}
 	WriteLine
 }
@@ -2544,8 +2772,8 @@ Function ConfigureTracing ([xml]$xmlinput)
 	}
 	Catch
 	{
-		$_
-		Write-Warning " - An error occurred updating the service account for service SPTraceV4."
+		Write-Output $_
+		Throw " - An error occurred updating the service account for service SPTraceV4."
 	}
 	WriteLine
 }
@@ -2581,7 +2809,7 @@ function CreateEnterpriseSearchServiceApp([xml]$xmlinput)
     If ($MySiteURL -like "https://*") {$MySiteHostHeader = $MySiteURL -replace "https://",""}        
     Else {$MySiteHostHeader = $MySiteURL -replace "http://",""}
 	$secSearchServicePassword = ConvertTo-SecureString -String $svcConfig.Password -AsPlainText -Force
-	$secContentAccessAcctPWD = ConvertTo-SecureString -String $svcConfig.EnterpriseSearchServiceApplications.EnterpriseSearchServiceApplication.ContentAccessAccountPWD -AsPlainText -Force
+	$secContentAccessAcctPWD = ConvertTo-SecureString -String $svcConfig.EnterpriseSearchServiceApplications.EnterpriseSearchServiceApplication.ContentAccessAccountPassword -AsPlainText -Force
 
     $searchSvc = Get-SPEnterpriseSearchServiceInstance -Local
     If ($searchSvc -eq $null) {
@@ -2628,6 +2856,9 @@ function CreateEnterpriseSearchServiceApp([xml]$xmlinput)
             Write-Host -ForegroundColor White " - Enterprise search service application already exists, skipping creation."
         }
 		
+		#Add link to resources list
+		AddResourcesLink "Search Administration" ("searchadministration.aspx?appid=" +  $SearchApp.Id)
+
         $installCrawlSvc = (($appConfig.CrawlServers.Server | where {$_.Name -eq $env:computername}) -ne $null)
         $installQuerySvc = (($appConfig.QueryServers.Server | where {$_.Name -eq $env:computername}) -ne $null)
         $installAdminCmpnt = (($appConfig.AdminComponent.Server | where {$_.Name -eq $env:computername}) -ne $null)
@@ -2706,19 +2937,23 @@ function CreateEnterpriseSearchServiceApp([xml]$xmlinput)
 
         If ($installSyncSvc) {            
             # SLN: Updated to new syntax
-			$SearchQueryAndSiteSettingsService = Get-SPServiceInstance | ? {$_.GetType().ToString() -eq "Microsoft.Office.Server.Search.Administration.SearchQueryAndSiteSettingsServiceInstance"}
-    		If (-not $?) { Throw " - Failed to find Search Query and Site Settings service instance" }
-			# Start Service instance
-    		If ($SearchQueryAndSiteSettingsService.Status -eq "Disabled")
-			{
-   	    		Write-Host -ForegroundColor White " - Starting Search Query and Site Settings Service Instance..."
-				Start-SPServiceInstance (Get-SPServiceInstance | where { $_.TypeName -eq "Search Query and Site Settings Service"}).Id | Out-Null
-				Write-Host -ForegroundColor Blue " - Waiting for Search Query and Site Settings service..." -NoNewline
+			$SearchQueryAndSiteSettingsServices = Get-SPServiceInstance | ? {$_.GetType().ToString() -eq "Microsoft.Office.Server.Search.Administration.SearchQueryAndSiteSettingsServiceInstance"}
+			$SearchQueryAndSiteSettingsService = $SearchQueryAndSiteSettingsServices | ? {$_.Server.Address -eq $env:COMPUTERNAME}
+		    If (-not $?) { Throw " - Failed to find Search Query and Site Settings service instance" }
+		    # Start Service instance
+   		 	Write-Host -ForegroundColor White " - Starting Search Query and Site Settings Service Instance..."
+			If($SearchQueryAndSiteSettingsService.Status -eq "Disabled")
+			{ 
+			    $SearchQueryAndSiteSettingsService.Provision()
+        		If (-not $?) { Throw " - Failed to start Search Query and Site Settings service instance" }
+        		# Wait
+    			Write-Host -ForegroundColor Blue " - Waiting for Search Query and Site Settings service..." -NoNewline
 				While ($SearchQueryAndSiteSettingsService.Status -ne "Online") 
 	    		{
 					Write-Host -ForegroundColor Blue "." -NoNewline
 		  			Start-Sleep 1
-					$SearchQueryAndSiteSettingsService = Get-SPServiceInstance | ? {$_.GetType().ToString() -eq "Microsoft.Office.Server.Search.Administration.SearchQueryAndSiteSettingsServiceInstance"}
+				    $SearchQueryAndSiteSettingsServices = Get-SPServiceInstance | ? {$_.GetType().ToString() -eq "Microsoft.Office.Server.Search.Administration.SearchQueryAndSiteSettingsServiceInstance"}
+		  			$SearchQueryAndSiteSettingsService = $SearchQueryAndSiteSettingsServices | ? {$_.Server.Address -eq $env:COMPUTERNAME}
 	    		}
 				Write-Host -BackgroundColor Blue -ForegroundColor Black $($SearchQueryAndSiteSettingsService.Status)
     		}
@@ -2804,6 +3039,7 @@ function CreateEnterpriseSearchServiceApp([xml]$xmlinput)
     # default to primitives 
     $PathToShare = """" + $svcConfig.ShareName + "=" + $svcConfig.IndexLocation + """"
 	# The path to be shared should exist if the Enterprise Search App creation succeeded earlier
+	EnsureFolder $svcConfig.IndexLocation
     Write-Host -ForegroundColor White " - Creating network share $PathToShare"
     net share $PathToShare "/GRANT:WSS_WPG,CHANGE"
 
@@ -2834,7 +3070,7 @@ function CreateEnterpriseSearchServiceApp([xml]$xmlinput)
 		}
 		Else
 		{
-			$spservice = $xmlinput.Configuration.Farm.ManagedAccounts.ManagedAccount | Where-Object { $_.CommonName -match "spservice" }
+			$spservice = Get-spserviceaccountxml $xmlinput
 			$username = $spservice.username
 			$password = ConvertTo-SecureString "$($spservice.password)" -AsPlaintext -Force
 		}
@@ -2998,6 +3234,7 @@ Function CreateBusinessDataConnectivityServiceApp([xml]$xmlinput)
      	Catch
      	{
      	 	Write-Output $_ 
+			Throw " - Error provisioning Business Data Connectivity application"
      	}
 	 	WriteLine
     }
@@ -3142,6 +3379,7 @@ Function CreateExcelServiceApp ([xml]$xmlinput)
 		Catch
 	 	{
 	  		Write-Output $_
+			Throw " - Error provisioning Excel Service Application"
 	 	}
 		WriteLine
 	}
@@ -3453,6 +3691,234 @@ Function ConfigureOutgoingEmail
 }
 #EndRegion
 
+#Region Configure Adobe PDF Indexing and Display
+# ====================================================================================
+# Func: Configure-PDFSearchAndIcon
+# Desc: Downloads and installs the PDF iFilter, registers the PDF search file type and document icon for display in SharePoint
+# From: Adapted/combined from @brianlala's additions, @tonifrankola's http://www.sharepointusecases.com/index.php/2011/02/automate-pdf-configuration-for-sharepoint-2010-via-powershell/
+# And : Paul Hickman's Patch 9609 at http://autospinstaller.codeplex.com/SourceControl/list/patches
+# ====================================================================================
+
+Function Configure-PDFSearchAndIcon
+{
+	WriteLine
+	Write-Host -ForegroundColor White " - Configuring PDF file search, display and handling..."
+	$SharePointRoot = "$env:CommonProgramFiles\Microsoft Shared\Web Server Extensions\14"
+	$SourceFileLocations = @("$bits\PDF\","$bits\AdobePDF\",$env:TEMP)
+	If (ShouldIProvision($xmlinput.Configuration.AdobePDF.iFilter) -eq $true)
+	{
+		$PDFiFilterUrl = "http://download.adobe.com/pub/adobe/acrobat/win/9.x/PDFiFilter64installer.zip"
+		Write-Host -ForegroundColor White " - Configuring PDF file iFilter and indexing..."
+		# Look for the installer or the installer zip in the possible locations
+		ForEach ($SourceFileLocation in $SourceFileLocations)
+		{
+			If (Get-Item $($SourceFileLocation+"PDFFilter64installer.msi") -ErrorAction SilentlyContinue)
+			{
+				Write-Host -ForegroundColor White " - PDF iFilter installer found in $SourceFileLocation."
+				$iFilterInstaller = $SourceFileLocation+"PDFFilter64installer.msi"
+				Break
+			}
+			ElseIf (Get-Item $($SourceFileLocation+"PDFiFilter64installer.zip") -ErrorAction SilentlyContinue)
+			{
+				Write-Host -ForegroundColor White " - PDF iFilter installer zip file found in $SourceFileLocation."
+				$ZipLocation = $SourceFileLocation
+				$SourceFile = $SourceFileLocation+"PDFiFilter64installer.zip"
+				Break
+			}
+		}
+		# If the MSI hasn't been extracted from the zip yet then extract it
+		If (!($iFilterInstaller))
+		{
+			# If the zip file isn't present then download it first
+			If (!($SourceFile))
+			{
+				Write-Host -ForegroundColor White " - PDF iFilter installer or zip not found, downloading..."
+				$ZipLocation = $env:TEMP
+				$DestinationFile = $ZipLocation+"\PDFiFilter64installer.zip"
+				Import-Module BitsTransfer | Out-Null
+				Start-BitsTransfer -Source $PDFiFilterUrl -Destination $DestinationFile -DisplayName "Downloading Adobe PDF iFilter..." -Priority High -Description "From $PDFiFilterUrl..." -ErrorVariable err
+				If ($err) {Write-Warning " - Could not download Adobe PDF iFilter!"; Pause; break}
+				$SourceFile = $DestinationFile
+			}
+			Write-Host -ForegroundColor White " - Extracting Adobe PDF iFilter installer..."
+			$Shell = New-Object -ComObject Shell.Application
+			$iFilterZip = $Shell.Namespace($SourceFile)
+			$Location = $Shell.Namespace($ZipLocation)
+	    	$Location.Copyhere($iFilterZip.items())
+			$iFilterInstaller = $ZipLocation+"\PDFFilter64installer.msi"
+		}
+		Try
+		{
+			Write-Host -ForegroundColor White " - Installing Adobe PDF iFilter..."
+			Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $iFilterInstaller /passive /norestart" -NoNewWindow -Wait
+		}
+		Catch {$_}
+		If ((Get-PsSnapin |?{$_.Name -eq "Microsoft.SharePoint.PowerShell"})-eq $null)
+		{
+		   	Write-Host -ForegroundColor White " - Loading SharePoint Powershell Snapin..."
+			$PSSnapin = Add-PsSnapin Microsoft.SharePoint.PowerShell
+		}
+		Write-Host -ForegroundColor White " - Setting PDF search crawl extension..."
+		$searchApplications = Get-SPEnterpriseSearchServiceApplication
+		If ($searchApplications)
+		{		
+			ForEach ($searchApplication in $searchApplications)
+			{
+				Try
+				{
+					Get-SPEnterpriseSearchCrawlExtension -SearchApplication $searchApplication -Identity "pdf" -ErrorAction Stop | Out-Null
+					Write-Host -ForegroundColor White " - PDF file extension already set for $($searchApplication.DisplayName)."
+				}
+				Catch
+				{
+					New-SPEnterpriseSearchCrawlExtension -SearchApplication $searchApplication -Name "pdf" | Out-Null
+					Write-Host -ForegroundColor White " - PDF extension for $($searchApplication.DisplayName) now set."
+				}
+			}
+		}
+		Else {Write-Warning " - No search applications found."}
+		Write-Host -ForegroundColor White " - Updating registry..."
+		If ((Get-Item -Path Registry::"HKLM\SOFTWARE\Microsoft\Office Server\14.0\Search\Setup\Filters\.pdf" -ErrorAction SilentlyContinue) -eq $null)
+		{
+			$item = New-Item -Path Registry::"HKLM\SOFTWARE\Microsoft\Office Server\14.0\Search\Setup\Filters\.pdf"
+			$item | New-ItemProperty -Name Extension -PropertyType String -Value "pdf" | Out-Null
+			$item | New-ItemProperty -Name FileTypeBucket -PropertyType DWord -Value 1 | Out-Null
+			$item | New-ItemProperty -Name MimeTypes -PropertyType String -Value "application/pdf" | Out-Null
+		}
+		If ((Get-Item -Path Registry::"HKLM\SOFTWARE\Microsoft\Office Server\14.0\Search\Setup\ContentIndexCommon\Filters\Extension\.pdf" -ErrorAction SilentlyContinue) -eq $null)
+		{
+			$registryItem = New-Item -Path Registry::"HKLM\SOFTWARE\Microsoft\Office Server\14.0\Search\Setup\ContentIndexCommon\Filters\Extension\.pdf"
+			$registryItem | New-ItemProperty -Name "(default)" -PropertyType String -Value "{E8978DA6-047F-4E3D-9C78-CDBE46041603}" | Out-Null
+		}
+		##Write-Host -ForegroundColor White " - Restarting SharePoint Foundation Search Service..."
+		##Restart-Service SPSearch4
+		If ((Get-Service OSearch14).Status -eq "Running")
+		{
+			Write-Host -ForegroundColor White " - Restarting SharePoint Search Service..."
+			Restart-Service OSearch14
+		}
+		Write-Host -ForegroundColor White " - Done configuring PDF iFilter and indexing."
+    }
+    If ($xmlinput.Configuration.AdobePDF.Icon.Configure -eq $true)
+	{
+		$PDFIconUrl = "http://www.adobe.com/images/pdficon_small.gif"
+		$DocIconFolderPath = "$SharePointRoot\TEMPLATE\XML"
+		$DocIconFilePath = "$DocIconFolderPath\DOCICON.XML"
+		Write-Host -ForegroundColor White " - Configuring PDF Icon..."
+		$pdfIcon = "icpdf.gif"
+		If (!(Get-Item $SharePointRoot\Template\Images\$pdfIcon -ErrorAction SilentlyContinue))
+		{
+			ForEach ($SourceFileLocation in $SourceFileLocations)
+			{
+				# Check each possible source file location for the PDF icon
+				$CopyIcon = Copy-Item -Path $SourceFileLocation\$pdfIcon -Destination $SharePointRoot\Template\Images\$pdfIcon -PassThru -ErrorAction SilentlyContinue
+				If ($CopyIcon)
+				{
+					Write-Host -ForegroundColor White " - PDF icon found at $SourceFileLocation\$pdfIcon"
+					Break
+				}
+			}
+			If (!($CopyIcon))
+			{
+				Write-Host -ForegroundColor White " - `"$pdfIcon`" not found; downloading it now..."
+				Import-Module BitsTransfer | Out-Null
+				Start-BitsTransfer -Source $PDFIconUrl -Destination "$SharePointRoot\Template\Images\$pdfIcon" -DisplayName "Downloading PDF Icon..." -Priority High -Description "From $PDFIconUrl..." -ErrorVariable err
+				If ($err) {Write-Warning " - Could not download PDF Icon!"; Pause; break}
+			}
+			If (Get-Item $SharePointRoot\Template\Images\$pdfIcon) {Write-Host -ForegroundColor White " - PDF icon copied successfully."}
+			Else {Throw}
+		}
+		$xml = New-Object XML
+		$xml.Load($DocIconFilePath)
+		If ($xml.SelectSingleNode("//Mapping[@Key='pdf']") -eq $null)
+		{
+			Try
+			{
+				Write-Host -ForegroundColor White " - Creating backup of DOCICON.XML file..."
+				$backupFile = "$DocIconFolderPath\DOCICON_Backup.xml"
+				Copy-Item $DocIconFilePath $backupFile
+				Write-Host -ForegroundColor White " - Writing new DOCICON.XML..."
+				$pdf = $xml.CreateElement("Mapping")
+				$pdf.SetAttribute("Key","pdf")
+				$pdf.SetAttribute("Value",$pdfIcon)
+				$xml.DocIcons.ByExtension.AppendChild($pdf) | Out-Null
+			    $xml.Save($DocIconFilePath)
+				Write-Host -ForegroundColor White " - Restarting IIS..."
+                iisreset
+			}
+			Catch {$_; Pause; Break}
+		}
+	}
+    If ($xmlinput.Configuration.AdobePDF.MIMEType.Configure -eq $true)
+	{
+		# Add the PDF MIME type to each web app so PDFs can be directly viewed/opened without saving locally first
+		# More granular and generally preferable to setting the whole web app to "Permissive" file handling
+		$MimeType = "application/pdf"
+		Write-Host -ForegroundColor White " - Adding PDF MIME type `"$MimeType`" web apps..."
+		ForEach ($WebAppConfig in $xmlinput.Configuration.WebApplications.WebApplication)
+		{
+			$WebAppUrl = $($WebAppConfig.url)+":"+$($WebAppConfig.Port)
+            $WebApp = Get-SPWebApplication -Identity $WebAppUrl
+			If ($WebApp.AllowedInlineDownloadedMimeTypes -notcontains $MimeType)
+            {
+                Write-Host -ForegroundColor White "  - $($WebAppUrl) - Adding..." -NoNewline
+                $WebApp.AllowedInlineDownloadedMimeTypes.Add($MimeType)
+                $WebApp.Update()
+				Write-Host -ForegroundColor White "Done."
+            }
+			Else
+			{
+                Write-Host -ForegroundColor White "  - $($WebAppUrl) - Already added."
+            }
+		}
+    }		
+	Write-Host -ForegroundColor White " - Done configuring PDF indexing and icon display."
+	WriteLine
+}
+#EndRegion
+
+#Region Install Forefront
+# ====================================================================================
+# Func: InstallForeFront
+# Desc: Installs ForeFront Protection 2010 for SharePoint Sites
+# ====================================================================================
+Function InstallForeFront
+{
+	If (ShouldIProvision($xmlinput.Configuration.ForeFront) -eq $true)
+	{
+		WriteLine
+		If (Test-Path "$env:PROGRAMFILES\Microsoft ForeFront Protection for SharePoint\Launcher.exe")
+		{
+			Write-Host -ForegroundColor White " - ForeFront binaries appear to be already installed - skipping install."
+		}
+		Else
+		{
+			# Install ForeFront
+			$config = $dp0 + "\" + $xmlinput.Configuration.ForeFront.ConfigFile
+			If (Test-Path "$bits\Forefront\setup.exe")
+			{
+				Write-Host -ForegroundColor White " - Installing ForeFront binaries..."
+				Try
+				{
+					Start-Process "$bits\Forefront\setup.exe" -ArgumentList "/a `"$config`" /p" -Wait
+					If (-not $?) {Throw}
+					Write-Host -ForegroundColor White " - Done installing ForeFront."
+				}
+				Catch 
+				{
+					Throw " - Error $LastExitCode occurred running $bits\ForeFront\setup.exe"
+				}
+			}
+			Else 
+			{
+				Throw " - ForeFront installer not found in $bits\ForeFront folder"
+			}
+		}
+		WriteLine
+	}
+}
+#EndRegion
+
 #Region Miscellaneous/Utility Functions
 # ===================================================================================
 # Func: Load SharePoint Powershell Snapin
@@ -3464,14 +3930,7 @@ Function Load-SharePoint-Powershell
 	{
     	WriteLine
 		Write-Host -ForegroundColor White " - Loading SharePoint Powershell Snapin"
-		Try 
-		{
-			Add-PsSnapin Microsoft.SharePoint.PowerShell
-			# Lately, loading the snapin throws an error: "System.TypeInitializationException: The type initializer for 'Microsoft.SharePoint.Utilities.SPUtility' threw an exception. ---> System.IO.FileNotFoundException:"...
-			If (!$?) {Throw}
-		}
-		# ...so we'll try a second time to add the snapin
-		Catch {Add-PsSnapin Microsoft.SharePoint.PowerShell -ErrorAction SilentlyContinue | Out-Null}
+		Add-PsSnapin Microsoft.SharePoint.PowerShell -ErrorAction Stop
 		WriteLine
 	}
 }
@@ -3629,6 +4088,13 @@ Function CheckSQLAccess
 				If ($objSQLDataReader.Read())
 				{
 					Write-Host -ForegroundColor White (" - SQL Server version is: {0}" -f $objSQLDataReader.GetValue(0))
+                    $SQLVersion = $objSQLDataReader.GetValue(0)
+           			[int]$SQLMajorVersion,[int]$SQLMinorVersion,[int]$SQLBuild,$null = $SQLVersion -split "\."
+                    # SharePoint needs minimum SQL 2008 10.0.2714.0 or SQL 2005 9.0.4220.0 per http://support.microsoft.com/kb/976215
+            		If ((($SQLMajorVersion -eq 10) -and ($SQLMinorVersion -lt 5) -and ($SQLBuild -lt 2714)) -or (($SQLMajorVersion -eq 9) -and ($SQLBuild -lt 4220)))
+            		{
+            			Throw " - Unsupported SQL version!"
+            		}
 					If ($objSQLDataReader.GetValue(1) -eq 1)
 					{
 						Write-Host -ForegroundColor White " - This instance of SQL Server is clustered"
@@ -3663,7 +4129,7 @@ Function CheckSQLAccess
 			}
 			Catch 
 			{
-				Write-Host -ForegroundColor Red "Fail"
+				Write-Host -ForegroundColor Red " - Fail"
 				$errText = $Error[0].ToString()
 				If ($errText.Contains("network-related"))
 				{
@@ -3673,6 +4139,10 @@ Function CheckSQLAccess
 				{
 					Throw " - Not able to login. SQL Server login not created."
 				}
+                ElseIf ($errText.Contains("Unsupported SQL version"))
+                {
+                    Throw " - SharePoint 2010 requires SQL 2005 SP3+CU3, SQL 2008 SP1+CU2, or SQL 2008 R2."
+                }
 				Else
 				{
 					Throw " - $currentUser does not have `'$serverRole`' role!"
@@ -3774,9 +4244,21 @@ Function InstallSMTP
 	{
 		WriteLine
 		Write-Host -ForegroundColor White " - Installing SMTP Server feature..."
-		Import-Module ServerManager
-		Add-WindowsFeature -Name SMTP-Server | Out-Null
-		If (!($?)) {Throw " - Failed to install SMTP Server!"}
+		$QueryOS = Gwmi Win32_OperatingSystem
+  		$QueryOS = $QueryOS.Version 
+    	$OS = ""
+    	If ($QueryOS.contains("6.1")) {$OS = "Win2008R2"}
+    	ElseIf ($QueryOS.contains("6.0")) {$OS = "Win2008"}
+		If ($OS -eq "Win2008R2")
+		{
+			Import-Module ServerManager
+			Add-WindowsFeature -Name SMTP-Server | Out-Null
+			If (!($?)) {Throw " - Failed to install SMTP Server!"}
+		}
+			Else # Win2008
+		{
+			Start-Process -FilePath servermanagercmd.exe -ArgumentList "-install smtp-server" -Wait -NoNewWindow
+		}
 		Write-Host -ForegroundColor White " - Done."
 		WriteLine
 	}
@@ -3794,7 +4276,7 @@ Function FixTaxonomyPickerBug
 	{
 		WriteLine
 		Write-Host -ForegroundColor White " - Renaming TaxonomyPicker.ascx..."
-		Move-Item -Path $TaxonomyPicker -Destination $TaxonomyPicker".buggy"
+		Move-Item -Path $TaxonomyPicker -Destination $TaxonomyPicker".buggy" -Force
 		Write-Host -ForegroundColor White " - Done."
 		WriteLine
 	}
@@ -3904,7 +4386,7 @@ Function AddToHOSTS
 # ====================================================================================
 Function Add-LocalIntranetURL ($url)
 {
-	If (($url -like "*.*") -and (($webApp.AddURLToLocalIntranetZone) -eq $true))
+	If (($url -like "*.*") -and (($WebApp.AddURLToLocalIntranetZone) -eq $true))
 	{
 		$url = $url -replace "https://",""
 		$url = $url -replace "http://",""
@@ -3916,4 +4398,129 @@ Function Add-LocalIntranetURL ($url)
 	}
 }
 
+# ====================================================================================
+# Func: CompressFolder
+# Desc: Enables NTFS compression for a given folder
+# From: Based on concepts & code found at http://www.humanstuff.com/2010/6/24/how-to-compress-a-file-using-powershell
+# ====================================================================================
+Function CompressFolder ($Folder)
+{
+	# Replace \ with \\ for WMI
+    $WmiPath = $Folder.Replace("\","\\")
+	$WmiDirectory = Get-WmiObject -Class "Win32_Directory" -Namespace "root\cimv2" -ComputerName $env:COMPUTERNAME -Filter "Name='$WmiPath'"
+    # Check if folder is already compressed
+    If (!($WmiDirectory.Compressed))
+    {
+        Write-Host -ForegroundColor White " - Compressing $Folder and subfolders..."
+        $Compress = $WmiDirectory.CompressEx("","True")
+        If ($Compress.ReturnValue -ne 0)
+        {
+            Write-Warning " - Errors encountered compressing $Folder, continuing..."
+        }
+    }
+	Else {Write-Host -ForegroundColor White " - $Folder is already compressed."}
+}
+
+# ====================================================================================
+# Func: EnsureFolder
+# Desc: Checks for the existence and validity of a given path, and attempts to create if it doesn't exist.
+# From: Modified from patch 9833 at http://autospinstaller.codeplex.com/SourceControl/list/patches by user timiun
+# ====================================================================================
+Function EnsureFolder ($Path)
+{
+		If (!(Test-Path -Path $Path -PathType Container))
+		{
+			Write-Host -ForegroundColor White " - $Path doesn't exist; creating..."
+			Try 
+			{
+				New-Item -Path $Path -ItemType Directory | Out-Null
+			}
+			Catch
+			{				
+				Write-Warning " - $($_.Exception.Message)"
+				Throw " - Could not create folder $Path!"
+			}
+		}
+}
+
+# ====================================================================================
+# Func: ImportWebAdministration
+# Desc: Load IIS WebAdministration Snapin/Module
+# From: Inspired by http://stackoverflow.com/questions/1924217/powershell-load-webadministration-in-ps1-script-on-both-iis-7-and-iis-7-5
+# ====================================================================================
+Function ImportWebAdministration
+{
+    $QueryOS = Gwmi Win32_OperatingSystem
+    $QueryOS = $QueryOS.Version 
+    $OS = ""
+    If ($QueryOS.contains("6.1")) {$OS = "Win2008R2"}
+    ElseIf ($QueryOS.contains("6.0")) {$OS = "Win2008"}
+    
+	Try
+	{
+		If ($OS -eq "Win2008")
+		{
+			If (!(Get-PSSnapin WebAdministration -ErrorAction SilentlyContinue))
+			{	 
+  				If (!(Test-Path $env:ProgramFiles\IIS\PowerShellSnapin\IIsConsole.psc1)) 
+				{
+					Start-Process -Wait -NoNewWindow -FilePath msiexec.exe -ArgumentList "/i `"$SPbits\PrerequisiteInstallerFiles\iis7psprov_x64.msi`" /passive /promptrestart"
+				}
+				Add-PSSnapin WebAdministration
+			}
+		}
+		Else # Win2008R2
+		{ 
+  			Import-Module WebAdministration
+		}
+	}
+	Catch
+	{
+		Throw " - Could not load IIS Administration module."
+		
+	}
+}
+
+# ====================================================================================
+# Func: AddResourcesLink
+# Desc: Adds an item to the Resources list shown on the Central Admin homepage
+#       $url should be relative to the central admin home page and should not include the leading /
+# ====================================================================================
+
+Function AddResourcesLink([string]$title,[string]$url)
+{
+	$centraladminapp = (Get-spwebapplication -includecentraladministration | where {$_.DisplayName -eq "SharePoint Central Administration v4"});
+	$centraladminurl = $centraladminapp.Url
+	$centraladmin = (Get-SPSite $centraladminurl)
+
+	$item = $centraladmin.RootWeb.Lists["Resources"].Items | Where { $_["URL"] -match ".*, $title" }
+	If ($item -eq $null )
+	{
+  		$item = $centraladmin.RootWeb.Lists["Resources"].Items.Add();
+	}
+
+	$url = $centraladminurl + $url + ", $title";
+	$item["URL"] = $url;
+	$item.Update();
+}
+
+# ====================================================================================
+# Func: PinToTaskbar
+# Desc: Pins a program to the taskbar
+# From: http://techibee.com/powershell/pin-applications-to-task-bar-using-powershell/685
+# ====================================================================================
+
+Function PinToTaskbar([string]$application)
+{
+	$shell = New-Object -ComObject "Shell.Application"
+	$folder = $shell.Namespace([System.IO.Path]::GetDirectoryName($application))
+		
+	Foreach ($verb in $folder.ParseName([System.IO.Path]::GetFileName($application)).verbs()) 
+	{
+		If($verb.name.replace("&","") -match "Pin to Taskbar") 
+		{
+			$verb.DoIt()
+		}
+	}	
+}
 #EndRegion
