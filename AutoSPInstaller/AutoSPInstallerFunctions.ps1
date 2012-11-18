@@ -827,8 +827,8 @@ Function InstallLanguagePacks([xml]$xmlinput)
 
     # Get and note installed languages
     #GPJ - Changed HKLM location to shared tools
-   	If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
-   	{
+    If(Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages")
+    {
        $installedOfficeServerLanguages = (Get-Item "HKLM:\Software\Microsoft\Office Server\14.0\InstalledLanguages").GetValueNames() | ? {$_ -ne ""}
     }
     else
@@ -838,7 +838,16 @@ Function InstallLanguagePacks([xml]$xmlinput)
     Write-Host -ForegroundColor White " - Currently installed languages:" 
     ForEach ($language in $installedOfficeServerLanguages)
     {
-        Write-Host "  -" ([System.Globalization.CultureInfo]::GetCultureInfo($language).DisplayName)
+	#GPJ - Changed localization id check
+	$languageId = 0
+	if([int32]::TryParse($language , [ref]$languageId ))
+	{
+        	Write-Host "  -" ([System.Globalization.CultureInfo]::GetCultureInfo($languageId).DisplayName)
+	}
+	else
+	{
+        	Write-Host "  -" ([System.Globalization.CultureInfo]::GetCultureInfo($language).DisplayName)
+	}
     }
     WriteLine
 }
