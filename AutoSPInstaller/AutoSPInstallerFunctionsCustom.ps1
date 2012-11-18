@@ -2,15 +2,6 @@
 # CUSTOM FUNCTIONS - Put your new or overriding functions here
 # ===================================================================================
 
-Function Get-IsServerInstall() {
-  if((Get-Command "New-SPMetadataServiceApplication" -errorAction SilentlyContinue) -ne $null)
-  {
-    return $true
-  }
-  return $false
-  #return Test-Path "HKLM:\Software\Microsoft\Office Server\14.0\"
-}
-
 #Region Get Version
 # ===================================================================================
 # FUNC: Get Version
